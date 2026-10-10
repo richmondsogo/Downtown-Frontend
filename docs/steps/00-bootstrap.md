@@ -83,7 +83,7 @@ Establish the core foundations of the Downtown project: domain context, design t
 
 - Pull Request URL: https://github.com/richmondsogo/Downtown-Frontend/pull/1
 - First commit SHA: a6ff8b977ace620a4c55a68033a34d112d563f6a
-- Last commit SHA:
+- Last commit SHA: f4060f563faadc6cb9477cf5422e95734777db0e
 - Merge commit SHA:
 - Merge strategy: Standard merge commit (`--no-ff`)
 
