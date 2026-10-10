@@ -1,155 +1,83 @@
-# Engineering Starter
+# Downtown
 
-A reusable engineering operating system for software projects built with Antigravity.
+> A trust-anchored campus marketplace starting at Osun State University (UNIOSUN).
 
----
-
-## What this is
-
-A starting point that encodes a coherent engineering workflow, agent instructions, design philosophy, documentation structure, verification discipline, and lightweight environment tooling.
-
-It is not an application. It does not contain React, FastAPI, a database, authentication, or deployment infrastructure.
-
-## What it is not
-
-- A project scaffold generator.
-- A component library.
-- A framework.
-- A collection of boilerplate to copy-paste.
-
-## Why it exists
-
-Starting a new project should not require reconstructing an entire engineering workflow from scratch. This starter captures the decisions, conventions, and tooling that make agent-assisted development coherent — so they travel with you into every project.
+Downtown replaces informal, scattered, and high-risk WhatsApp commerce with verified student sellers, automated listing moderation, structured purchase requests, and a two-party transaction reconciliation loop.
 
 ---
 
-## Starting a project from this starter
+## Architecture & Monorepo
 
-1. Copy or clone this repository into your new project directory.
-2. Delete `README.md` and replace it with a project-specific one.
-3. Complete `CONTEXT.md` with project-specific domain information.
-4. Update `DESIGN.md` with any project-specific design tokens or rules.
-5. Work through the new project checklist below.
-6. Run `scripts/bootstrap.ps1` to confirm your environment is ready.
-7. Create `docs/steps/00-plan.md` using the step template.
-8. Begin implementation using the Build Protocol.
-
-### New project checklist
+Downtown is organized as a contract-first monorepo using **Turborepo** and **pnpm**:
 
 ```
-[ ] Define project context (CONTEXT.md)
-[ ] Confirm technology stack
-[ ] Identify required MCPs (docs/agents/mcps.md)
-[ ] Identify relevant skills (docs/agents/skills.md)
-[ ] Establish project-specific design details (DESIGN.md)
-[ ] Create initial step plan (docs/steps/00-plan.md)
-[ ] Begin implementation
-[ ] Verify every meaningful step
+downtown/
+├── apps/
+│   ├── web/        # Next.js web frontend (mobile-first responsive)
+│   ├── api/        # Next.js API & service layer
+│   └── mobile/     # React Native + Expo (deferred to post-MVP; see ADR 0001)
+├── packages/
+│   ├── types/      # Shared TypeScript type definitions
+│   └── validation/ # Shared Zod validation schemas
+├── docs/           # Architecture decision records (ADRs) & step execution logs
+└── scripts/        # Environment health & verification scripts
 ```
 
-Use the project-bootstrap skill (`.agents/skills/project-bootstrap/SKILL.md`) to help with this process.
+Per [ADR 0001](docs/adr/0001-web-first-launch.md), Downtown is launching **Web-First** for its November 30, 2026 target:
+- Web and API are prioritized to deliver zero-friction guest discovery, viral WhatsApp link sharing, and fast deployment on Vercel.
+- The shared types and validation packages guarantee that the post-launch React Native + Expo app can consume the existing backend without rewriting data models.
 
 ---
 
-## How the agent workflow works
+## Prerequisites
 
-The agent reads [`AGENTS.md`](./AGENTS.md) first. That document is the working agreement.
-
-The full development methodology is in [`BUILD_PROTOCOL.md`](./BUILD_PROTOCOL.md).
-
-The loop is:
-
-```
-Understand → Plan → Branch → Approve → Implement → Verify → Review diff → Record → PR & Review → Merge & Checkpoint
-```
+- **Node.js**: `>= 20.0.0`
+- **pnpm**: `>= 9.0.0` (`npm install -g pnpm`)
+- **Git**
 
 ---
 
-## Key documents
+## Local Setup
 
-| Document | Purpose |
+1. **Verify your local environment**:
+   ```powershell
+   .\scripts\check-env.ps1
+   ```
+
+2. **Install workspace dependencies**:
+   ```bash
+   pnpm install
+   ```
+
+3. **Run the project verification suite**:
+   ```powershell
+   .\scripts\verify.ps1
+   ```
+
+4. **Start development** (available once apps are added in Step 01):
+   ```bash
+   pnpm dev
+   ```
+
+---
+
+## Available Scripts
+
+| Command / Script | Purpose |
 |---|---|
-| [`AGENTS.md`](./AGENTS.md) | Agent working agreement & resource catalog |
-| [`BUILD_PROTOCOL.md`](./BUILD_PROTOCOL.md) | 10-stage development methodology & PR workflow |
-| [`CONTEXT.md`](./CONTEXT.md) | Project domain, users, constraints, non-goals |
-| [`DESIGN.md`](./DESIGN.md) | Design principles and rules |
+| `.\scripts\check-env.ps1` | Inspects local development toolchain (Node, pnpm, Git, Turbo) |
+| `.\scripts\verify.ps1` | Central verification runner for repository state, secrets, and toolchain |
+| `pnpm dev` | Starts Turborepo dev pipeline across workspace apps |
+| `pnpm build` | Builds all apps and packages |
+| `pnpm lint` | Runs linter across all workspace packages |
+| `pnpm check-types` | Executes TypeScript typechecks across the monorepo |
 
 ---
 
-## Project documentation
+## Core Documentation
 
-| Location | Contains |
-|---|---|
-| `docs/adr/` | Architecture Decision Records |
-| `docs/steps/` | Step-by-step engineering log |
-| `docs/agents/file-structure.md` | Functional directory layout and placement rules |
-| `docs/agents/skills.md` | Available skills |
-| `docs/agents/mcps.md` | Available MCPs |
-| `docs/agents/issue-tracker.md` | Issue tracking approach |
-| `docs/agents/domain.md` | Domain knowledge guidance |
-
----
-
-## Skills
-
-Skills are task-specific instruction sets for the agent.
-
-**Environment-level skills** (provided by Antigravity, not this repository):
-- Antigravity built-in skills
-- Matt Pocock engineering skills
-- Anthropic frontend-design skill
-
-**Project-local skills** (in `.agents/skills/`):
-- `design-system` — Keep UI work aligned with the project design system.
-- `browser-verification` — Standard browser verification workflow.
-- `project-bootstrap` — Initialize a real project from this starter.
-
-See [`docs/agents/skills.md`](./docs/agents/skills.md) for the full reference.
-
-## MCPs
-
-MCPs provide external capabilities to the agent.
-
-**Environment-level MCPs** (already available):
-- shadcn MCP
-- GitHub MCP
-
-**Project-specific MCPs** are documented in `.agents/mcp_config.json` (not committed — see `.agents/mcp_config.json.example`).
-
-See [`docs/agents/mcps.md`](./docs/agents/mcps.md) for the full reference.
-
----
-
-## Design
-
-Design principles are in [`DESIGN.md`](./DESIGN.md).
-
-The short version: modern, minimal, calm, content-first. Prefer shadcn-style interfaces. Centralize tokens. Avoid visual noise.
-
-Visual changes must be verified in a browser before a step is complete.
-
----
-
-## Verification
-
-Verification is required at every meaningful step.
-
-The standard workflow:
-1. Run relevant tests and checks.
-2. `git status` — confirm only expected files changed.
-3. `git diff` — inspect the diff line by line.
-4. Run the application (when relevant).
-5. Verify in a browser (when relevant).
-6. Report what was actually checked.
-
-`scripts/verify.ps1` is the conventional entry point. Real projects customize it for their stack.
-
----
-
-## Scripts
-
-| Script | Purpose |
-|---|---|
-| `scripts/bootstrap.ps1` | Environment inspection and setup guidance |
-| `scripts/check-env.ps1` | Quick environment health check |
-| `scripts/verify.ps1` | Project verification entry point |
+- [`CONTEXT.md`](./CONTEXT.md) — Domain vocabulary, entities, actors, constraints, and non-goals.
+- [`DESIGN.md`](./DESIGN.md) — Visual tokens (neutral shadcn style), mobile-first rules, and strict styling prohibitions.
+- [`BUILD_PROTOCOL.md`](./BUILD_PROTOCOL.md) — 10-stage development lifecycle and branch isolation workflow.
+- [`AGENTS.md`](./AGENTS.md) — Working agreements and agent governance.
+- [`docs/adr/0001-web-first-launch.md`](./docs/adr/0001-web-first-launch.md) — Architecture decision: web-first launch, Expo mobile deferred.

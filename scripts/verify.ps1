@@ -1,34 +1,15 @@
 <#
 .SYNOPSIS
-    Project verification entry point.
+    Project verification entry point for Downtown monorepo.
 
 .DESCRIPTION
-    Runs verification checks for the project.
-
-    This script is intentionally stack-agnostic in the starter.
-    Real projects should customize the "Project verification" section
-    for their specific tools and commands.
-
-    The starter-level checks (git state, no tracked secrets) always run.
-    Project-level checks are delegated to project-defined commands.
-
-.NOTES
-    How to customize for a real project:
-
-    Node/pnpm:
-        Run-Check "TypeScript typecheck" { pnpm run typecheck }
-        Run-Check "Lint"                 { pnpm run lint }
-        Run-Check "Tests"                { pnpm run test }
-
-    Python/uv:
-        Run-Check "Python tests" { uv run pytest }
-        Run-Check "Python lint"  { uv run ruff check . }
-        Run-Check "Type check"   { uv run mypy . }
+    Runs verification checks for repository hygiene, toolchains,
+    monorepo configuration, and Turborepo setup.
 #>
 
 Write-Host ""
-Write-Host "Project Verification" -ForegroundColor Cyan
-Write-Host "====================" -ForegroundColor Cyan
+Write-Host "Project Verification (Downtown)" -ForegroundColor Cyan
+Write-Host "================================" -ForegroundColor Cyan
 Write-Host ""
 
 $passed  = 0
@@ -52,12 +33,15 @@ function Run-Check {
 
     Write-Host ("  ..  {0}" -f $Label) -ForegroundColor DarkGray
     try {
-        $null = & $Block 2>&1
+        $out = & $Block 2>&1
         if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq $null) {
             Write-Host ("  OK  {0}" -f $Label) -ForegroundColor Green
             $script:passed++
         } else {
             Write-Host ("  !!  {0}  [exit code $LASTEXITCODE]" -f $Label) -ForegroundColor Red
+            if ($out) {
+                Write-Host "      $out" -ForegroundColor DarkRed
+            }
             $script:failed++
         }
     } catch {
@@ -66,7 +50,7 @@ function Run-Check {
     }
 }
 
-# ---- Git state --------------------------------------------------------------
+# ---- Git state & secrets ----------------------------------------------------
 
 Write-Host "Repository state:" -ForegroundColor White
 
@@ -89,16 +73,47 @@ Run-Check "No obviously tracked secrets" {
 
 Write-Host ""
 
-# ---- Project verification ---------------------------------------------------
-#
-# Replace this section with your project's actual verification commands.
-# See the .NOTES section above for examples.
-#
+# ---- Monorepo Configuration -------------------------------------------------
 
-Write-Host "Project checks:" -ForegroundColor White
-Write-Host "  --  No project-specific checks defined." -ForegroundColor Yellow
-Write-Host "      Customize scripts\verify.ps1 for your stack." -ForegroundColor DarkGray
-$skipped++
+Write-Host "Monorepo manifests:" -ForegroundColor White
+
+Run-Check "package.json exists and is valid" {
+    if (-not (Test-Path "package.json")) { exit 1 }
+    $null = Get-Content "package.json" -Raw | ConvertFrom-Json
+}
+
+Run-Check "pnpm-workspace.yaml exists" {
+    if (-not (Test-Path "pnpm-workspace.yaml")) { exit 1 }
+}
+
+Run-Check "turbo.json exists and is valid" {
+    if (-not (Test-Path "turbo.json")) { exit 1 }
+    $null = Get-Content "turbo.json" -Raw | ConvertFrom-Json
+}
+
+Run-Check ".nvmrc exists" {
+    if (-not (Test-Path ".nvmrc")) { exit 1 }
+}
+
+Write-Host ""
+
+# ---- Toolchain & Package Manager --------------------------------------------
+
+Write-Host "Toolchain & dependencies:" -ForegroundColor White
+
+Run-Check "Node.js >= 22 (LTS)" {
+    $ver = (node -v).Trim().TrimStart('v')
+    $major = [int]($ver.Split('.')[0])
+    if ($major -lt 22) { exit 1 }
+}
+
+Run-Check "pnpm installed" {
+    pnpm -v | Out-Null
+}
+
+Run-Check "Turborepo operational" {
+    pnpm exec turbo --version | Out-Null
+}
 
 Write-Host ""
 
