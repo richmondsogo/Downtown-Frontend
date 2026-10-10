@@ -2,7 +2,7 @@
 
 **Step Branch**: `step/00-bootstrap`  
 **Primary Branch**: `master`  
-**Pull Request**: `Pending`  
+**Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/1  
 
 ---
 
@@ -81,9 +81,8 @@ Establish the core foundations of the Downtown project: domain context, design t
 
 ## Diff / Checkpoint
 
-*(To be updated after PR creation and merge)*
-- Pull Request URL:
-- First commit SHA:
+- Pull Request URL: https://github.com/richmondsogo/Downtown-Frontend/pull/1
+- First commit SHA: a6ff8b977ace620a4c55a68033a34d112d563f6a
 - Last commit SHA:
 - Merge commit SHA:
 - Merge strategy: Standard merge commit (`--no-ff`)
