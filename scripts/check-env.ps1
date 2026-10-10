@@ -1,17 +1,10 @@
 <#
 .SYNOPSIS
-    Quick environment health check.
+    Quick environment health check for Downtown monorepo.
 
 .DESCRIPTION
-    Reports the state of local development tooling.
-
-    Distinguishes between:
-      - What the environment is capable of (tools available).
-      - What the project requires (defined by your stack).
-
-    This script does not check Antigravity or MCP state -- those are
-    managed by the Antigravity IDE and cannot be reliably inspected
-    from a shell script.
+    Reports the state of local development tooling and requirements
+    for the Downtown project (Node.js, pnpm, Turborepo, Git).
 #>
 
 Write-Host ""
@@ -49,8 +42,6 @@ $hasGit    = Test-CliTool "git"    "git"
 $hasNode   = Test-CliTool "node"   "node"
 $hasNpm    = Test-CliTool "npm"    "npm"
 $hasPnpm   = Test-CliTool "pnpm"   "pnpm"
-$hasPython = Test-CliTool "python" "python"
-$hasUv     = Test-CliTool "uv"     "uv"
 
 Write-Host ""
 
@@ -70,7 +61,6 @@ if ($hasGit) {
             Write-Host "  OK  Working tree clean" -ForegroundColor Green
         } else {
             Write-Host "  WW  $dirty uncommitted change(s)" -ForegroundColor Yellow
-            $issueList += "Uncommitted changes in working tree."
         }
     } else {
         Write-Host "  WW  Not a git repository" -ForegroundColor Yellow
@@ -84,33 +74,61 @@ if ($hasGit) {
 Write-Host ""
 
 # ---- Project requirements ---------------------------------------------------
-#
-# Customize this section for your project.
-# Add project-specific tool checks here and push to $issueList when missing.
-#
-# Example:
-#   if (-not $hasNode) { $issueList += "Node.js is required. Install from https://nodejs.org" }
-#   if (-not $hasPnpm) { $issueList += "pnpm is required. Run: npm install -g pnpm" }
-#
-Write-Host "Project requirements:" -ForegroundColor White
-Write-Host "  --  No project-specific requirements defined yet." -ForegroundColor Yellow
-Write-Host "      Customize scripts\check-env.ps1 for your stack." -ForegroundColor DarkGray
 
-Write-Host ""
+Write-Host "Project requirements (Downtown stack):" -ForegroundColor White
 
-# ---- Agent environment note -------------------------------------------------
+if (-not $hasNode) {
+    Write-Host "  !!  Node.js is required (>= 22.0.0)" -ForegroundColor Red
+    $issueList += "Node.js is not installed."
+} else {
+    try {
+        $nodeVerStr = (node -v).Trim().TrimStart('v')
+        $nodeMajor = [int]($nodeVerStr.Split('.')[0])
+        if ($nodeMajor -lt 22) {
+            Write-Host ("  !!  Node.js version {0} is below required >= 22.0.0 (LTS)" -f $nodeVerStr) -ForegroundColor Red
+            $issueList += "Node.js version must be >= 22.0.0."
+        } else {
+            Write-Host ("  OK  Node.js version {0} (meets >= 22 LTS)" -f $nodeVerStr) -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  OK  Node.js present" -ForegroundColor Green
+    }
+}
 
-Write-Host "Agent environment:" -ForegroundColor White
-Write-Host "  --  Antigravity IDE, MCPs, and skills cannot be verified from" -ForegroundColor Yellow
-Write-Host "      a shell script. Verify these inside the Antigravity IDE." -ForegroundColor DarkGray
-Write-Host "      See docs\agents\mcps.md and docs\agents\skills.md." -ForegroundColor DarkGray
+if (-not $hasPnpm) {
+    Write-Host "  !!  pnpm is required (>= 9.0.0). Run: npm install -g pnpm" -ForegroundColor Red
+    $issueList += "pnpm is not installed."
+} else {
+    try {
+        $pnpmVerStr = (pnpm -v).Trim()
+        $pnpmMajor = [int]($pnpmVerStr.Split('.')[0])
+        if ($pnpmMajor -lt 9) {
+            Write-Host ("  !!  pnpm version {0} is below required >= 9.0.0" -f $pnpmVerStr) -ForegroundColor Red
+            $issueList += "pnpm version must be >= 9.0.0."
+        } else {
+            Write-Host ("  OK  pnpm version {0} (meets >= 9)" -f $pnpmVerStr) -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  OK  pnpm present" -ForegroundColor Green
+    }
+}
+
+$reqFiles = @("package.json", "pnpm-workspace.yaml", "turbo.json", ".nvmrc")
+foreach ($f in $reqFiles) {
+    if (Test-Path $f) {
+        Write-Host ("  OK  {0} present" -f $f) -ForegroundColor Green
+    } else {
+        Write-Host ("  !!  {0} missing" -f $f) -ForegroundColor Red
+        $issueList += "Missing monorepo file: $f"
+    }
+}
 
 Write-Host ""
 
 # ---- Summary ----------------------------------------------------------------
 
 if ($issueList.Count -eq 0) {
-    Write-Host "Status: OK" -ForegroundColor Green
+    Write-Host "Status: OK - Environment is ready for Downtown development." -ForegroundColor Green
 } else {
     Write-Host "Status: Issues found" -ForegroundColor Red
     Write-Host ""
