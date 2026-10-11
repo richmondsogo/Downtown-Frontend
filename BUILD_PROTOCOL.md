@@ -84,7 +84,7 @@ Merge & Checkpoint
 
 ### Branching and Pull Requests
 
-- **Protect the primary branch**: Explicitly prefer `main`. If `main` exists, target `main`; otherwise, fall back to `master`. Direct commits to the primary branch are strictly prohibited.
+- **Protect the primary branch**: Explicitly prefer `main`. If `main` exists, target `main`; otherwise, fall back to `master`. Direct commits to the primary branch are strictly prohibited, with one explicit exception: a docs-only commit touching only `docs/steps/NN-*.md` may be pushed straight to master to record provenance SHAs. Nothing else may.
 - **Step branches**: Every step operates on an isolated subbranch named `step/NN-<slug>` (e.g., `step/01-auth-flow`).
 - **Standard merge commits (`--no-ff`)**: PRs must merge with a standard merge commit (`git merge --no-ff`) rather than squashing or rebasing. This preserves the complete commit history and narrative on the primary branch.
 - **Provenance tracking**: Every completed step log in `docs/steps/` must record the PR URL, first commit SHA, last commit SHA, and merge commit SHA.

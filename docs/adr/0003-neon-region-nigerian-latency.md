@@ -55,8 +55,8 @@ Concurrently:
 
 ## Alternatives Considered
 
-1. **Keep `aws-us-east-2` (Ohio)**: Zero migration effort, but incurs a persistent transatlantic latency penalty of ~100–150 ms on every uncached round-trip request for students in Nigeria.
-2. **AWS Europe West 2 (London - `aws-eu-west-2`)**: Highly competitive in Round 1 (248.0 ms median), but exhibited higher latency variance and a 312.9 ms median in Round 2. Frankfurt proved more stable on aggregate and aligns with Vercel's primary European region (`fra1`).
+1. **Keep `aws-us-east-2` (Ohio)**: Baseline measured median connect times were 271.8 ms (Round 1) and 285.9 ms (Round 2). Traversing transatlantic routes consistently yielded higher median connect times than Frankfurt across all test sets.
+2. **AWS Europe West 2 (London - `aws-eu-west-2`)**: Highly competitive in Round 1 (248.0 ms median), but exhibited higher latency variance and a 312.9 ms median in Round 2. Frankfurt proved more stable on aggregate (267.8 ms combined median) and aligns with Vercel's primary European region (`fra1`).
 
 ## Trade-offs
 
@@ -65,6 +65,8 @@ Concurrently:
 
 ## Consequences
 
-- Colocating Neon and Vercel functions in Frankfurt (`fra1`) minimizes internal API-to-database connection latency to < 3 ms.
-- Round-trip response time for UNIOSUN mobile users drops by approximately 50% compared to routing across the Atlantic to Ohio.
+- Colocating Neon and Vercel functions in Frankfurt (`fra1`) eliminates cross-ocean internal hops between serverless compute and Postgres.
+- **The ~270 ms Implication**: With a measured client-to-Frankfurt connect latency of ~268–274 ms from Nigeria, every sequential client-server round trip carries significant latency for mobile users. System design must:
+  1. Minimize serial client-to-server and server-to-database round trips (e.g., combining data fetching into single queries or unified endpoints).
+  2. Aggressively cache public reference and read-heavy data (e.g. categories, taxonomy, curated locations) at the CDN/browser edge with `Cache-Control` (`public, s-maxage, stale-while-revalidate`).
 - Step 02 documentation reflects new Neon project ID `misty-paper-37733898`.

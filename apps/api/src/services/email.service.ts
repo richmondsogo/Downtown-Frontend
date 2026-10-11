@@ -11,12 +11,12 @@ export interface EmailService {
 export class ConsoleEmailService implements EmailService {
   constructor() {
     const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-    const isProd = process.env.NODE_ENV === "production" && !isBuildPhase;
-    const isVercelPreview =
-      process.env.VERCEL_ENV === "preview" ||
-      process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
+    const isVercelProd =
+      (process.env.VERCEL_ENV === "production" ||
+        process.env.NEXT_PUBLIC_VERCEL_ENV === "production") &&
+      !isBuildPhase;
 
-    if (isProd && !isVercelPreview) {
+    if (isVercelProd) {
       throw new Error(
         "FATAL: ConsoleEmailService cannot be used in production environment. A real email provider (e.g. Resend) is required."
       );
