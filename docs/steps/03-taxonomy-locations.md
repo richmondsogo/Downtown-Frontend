@@ -2,7 +2,7 @@
 
 **Step Branch**: `step/03-taxonomy-locations`  
 **Primary Branch**: `master`  
-**Pull Request**: `[Pending]`  
+**Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/7  
 
 ---
 
@@ -154,12 +154,36 @@ Establish contract-first domain taxonomy and location models, seed reference dat
 - **Desktop Viewport (1280x800)**:
   ![Desktop Viewport 1280px](file:///c:/Users/Richmond/Desktop/Open%20Source%20Projects/DOWNTOWN/Downtown-Frontend/docs/steps/assets/03-desktop-1280px.png)
 
+### 3. Edge Cache Verification & Next.js Rewrite Analysis
+- **Direct Preview API Edge Cache Test**:
+  - Request 1 to `https://downtown-api-git-step-03-taxonomy-locations-richmondsogo.vercel.app/api/categories`:
+    - HTTP 200 OK
+    - `Cache-Control: public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800`
+    - `x-vercel-cache: MISS`
+  - Request 2 to `https://downtown-api-git-step-03-taxonomy-locations-richmondsogo.vercel.app/api/categories`:
+    - HTTP 200 OK
+    - `x-vercel-cache: HIT` (`Age: 1`)
+  - **Verdict**: Direct API edge caching on Vercel is working exactly as designed.
+- **Web Domain Rewrite Analysis (`apps/web/next.config.js`)**:
+  - Currently, `apps/web/next.config.js` defines an external rewrite:
+    ```ts
+    {
+      source: '/api/:path*',
+      destination: `${process.env.API_INTERNAL_URL || 'http://localhost:3001'}/api/:path*`,
+    }
+    ```
+  - In the Vercel project environment settings for `downtown-web`, `API_INTERNAL_URL` is configured to `https://downtown-api.vercel.app` (the production API deployment of `master`), rather than the branch preview API. Consequently, hitting `/api/categories` through the preview web domain routed to production (which returns 404 until Step 03 merges).
+  - Additionally, Next.js external rewrites pass through a serverless proxy execution and do not automatically persist in Vercel's edge cache for the web zone unless clients call the API directly or Next.js route handlers leverage Data Cache ISR (`fetch(..., { next: { revalidate } })`).
+  - **Proposed Fix**:
+    1. For production & preview, have the web client query `NEXT_PUBLIC_API_URL` directly for public reference data (`/api/categories`, `/api/locations/autocomplete`), bypassing the serverless rewrite hop and allowing Vercel Edge Network to return instant cache hits directly from `downtown-api`.
+    2. Maintain the `/api/*` rewrite as fallback for cookie-based session auth endpoints to avoid third-party cookie restrictions.
+
 ---
 
 ## Commit Provenance
 
-- **First Commit SHA**: `[Pending]`
-- **Last Commit SHA**: `[Pending]`
-- **PR URL**: `[Pending]`
-- **Merge Commit SHA**: `[Pending]`
+- **First Commit SHA**: `0e7634f`
+- **Last Commit SHA**: `020300c`
+- **PR URL**: `https://github.com/richmondsogo/Downtown-Frontend/pull/7`
+- **Merge Commit SHA**: `[Pending merge to master]`
 
