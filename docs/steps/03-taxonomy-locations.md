@@ -8,86 +8,123 @@
 
 ## Objective
 
-Establish contract-first domain taxonomy and location models, seed reference data for Osun State University (UNIOSUN), implement high-performance cacheable query endpoints (`GET /categories`, `GET /locations/autocomplete`), and deliver reusable mobile-first UI selection components (`CategoryPills`, `LocationSelector`) verified at 375px and 1280px.
+Establish contract-first domain taxonomy and location models, seed reference data for Osun State University (UNIOSUN), implement high-performance cacheable query endpoints (`GET /categories`, `GET /locations/autocomplete`), support authenticated custom location submission with anti-abuse guards, and deliver reusable mobile-first UI selection components (`CategoryPills`, `LocationSelector`) verified at 375px and 1280px.
 
 ---
 
-## Scope
+## Scope & Approved Amendments
 
-### Included
-- **Schema Contracts & Tables (`@downtown/types`, `@downtown/validation`, `apps/api/src/db/schema.ts`)**:
-  - `University`: id, name, slug, shortCode, createdAt.
-  - `Campus`: id, universityId, name, slug, code, address, createdAt.
-  - `Category`: id, name, slug, description, icon, displayOrder, isActive, createdAt.
-  - `Location`: id, campusId, name, slug, type (`campus_facility`, `hostel`, `off_campus_area`), landmark, displayOrder, isActive, createdAt.
-- **Reference Data Seed (`apps/api/src/db/seeds/taxonomy-locations.ts`)**:
-  - Idempotent seed script (`pnpm --filter api db:seed:taxonomy`) populating:
-    - UNIOSUN and all 6 campuses (Osogbo, Ikire, Okuku, Ifetedo, Ipetu-Ijesha, Ejigbo).
-    - 9 official v1 product/service categories.
-    - Curated hostels, on-campus facilities, and off-campus student residential zones.
-- **API Endpoints (`apps/api`)**:
-  - `GET /api/categories`: Returns active categories ordered by `displayOrder`, with HTTP edge-cache headers (`Cache-Control: public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800`).
-  - `GET /api/locations/autocomplete?q=...&campusId=...`: Prefix/substring search matching location names and landmarks, cached with appropriate HTTP headers.
-- **Web UI Components (`apps/web`)**:
-  - `CategoryPills`: Horizontally scrollable on mobile (375px), wrapable on desktop (1280px), keyboard navigable, active indicator, zero layout shifts.
-  - `LocationSelector`: Dropdown/combobox modal supporting campus filtering and location autocomplete with Nigerian campus landmarks.
-- **Automated Tests**:
-  - Validation contract unit tests in `packages/validation`.
-  - API endpoint integration tests in `apps/api/src/__tests__/taxonomy-locations.test.ts`.
-  - Component unit tests in `apps/web/src/__tests__/category-pills.test.tsx` and `location-selector.test.tsx`.
-- **Browser Verification**:
-  - Chrome DevTools MCP screenshots at 375px and 1280px saved to `docs/steps/assets/03-*`.
+### 1. Categories (Strictly per GOAL.md 5.3)
+- Top-level categories only (no subcategories in v1):
+  1. **Electronics** (`electronics`)
+  2. **Fashion & Accessories** (`fashion-accessories`)
+  3. **Food & Drinks** (`food-drinks`)
+  4. **Home & Living** (`home-living`)
+  5. **Books & Study Materials** (`books-study-materials`)
+  6. **Beauty & Personal Care** (`beauty-personal-care`)
+  7. **Services** (`services`)
+  8. **Tickets & Events** (`tickets-events`)
+  9. **Other** (`other`)
+- Endpoint `GET /api/categories`: returns active categories sorted by `displayOrder`.
+- Cache headers: `Cache-Control: public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800`.
 
-### Excluded
-- Listing creation, search indexing, or item queries (reserved for Step 04).
-- Admin CRUD UI for editing categories/locations (managed via database seeds in v1).
+### 2. Campuses & Reference Locations (UNIOSUN)
+- Seed strictly:
+  - University: Osun State University (UNIOSUN)
+  - Six Campuses *(to be confirmed by founders)*:
+    1. Osogbo (Main Campus) (`osogbo`)
+    2. Ikire Campus (`ikire`)
+    3. Okuku Campus (`okuku`)
+    4. Ifetedo Campus (`ifetedo`)
+    5. Ipetu-Ijesha Campus (`ipetu-ijesha`)
+    6. Ejigbo Campus (`ejigbo`)
+  - Exactly one reference Location row per campus (`type="campus"`, `is_curated=true`).
+  - No speculative "campus landmarks" in initial seeds.
+  - Student-area locations sourced strictly from `docs/data/student-areas.csv` (initialized headers-only) via a CSV loader function.
+- Idempotent seed script (`pnpm --filter api db:seed:taxonomy`).
+
+### 3. Custom Locations & Autocomplete Search (`pg_trgm`)
+- **Database Search Extension**:
+  - Migration applies `CREATE EXTENSION IF NOT EXISTS pg_trgm;`.
+  - Trigram and btree prefix indexes on location names.
+  - Query plan verified using `EXPLAIN ANALYZE`.
+- **Custom Location Creation (`POST /api/locations`)**:
+  - Requires authenticated session.
+  - Rate limited (max 5 requests per 10 minutes per user/IP).
+  - Validation: trimmed name, length between 3 and 80 characters.
+  - Anti-abuse: rejects names containing phone numbers (e.g. Nigerian phone patterns) or URLs (`http`, `www`, `.com`, etc.).
+  - Duplicate handling: case-insensitive deduplication within the same campus.
+  - Created with `is_curated = false` and `creator_id = session.userId`.
+- **Autocomplete (`GET /api/locations/autocomplete?q=...&campusId=...`)**:
+  - For unauthenticated/public users: returns ONLY curated locations (`is_curated = true`).
+  - For authenticated users: returns curated locations PLUS custom locations created by the current user (`is_curated = true OR creator_id = currentUserId`).
+  - Ranking: exact/prefix match > trigram similarity, curated first, limit 8, minimal payload (`id`, `name`, `slug`, `type`, `isCurated`).
+  - Cache headers: short edge cache `s-maxage=60, stale-while-revalidate=300` (for public queries).
+
+### 4. UI Components (`apps/web`)
+- Strict styling discipline: strictly use design tokens and shared components; no hardcoded hex/RGB colors, arbitrary spacing, or one-off page styles.
+- **`CategoryPills`**:
+  - Horizontally scrollable without layout shifts on mobile (375px).
+  - Flex-wrapable on desktop (1280px).
+  - Keyboard accessible (`role="tablist"` / `role="tab"`).
+- **`LocationSelector`**:
+  - Campus filter select + location autocomplete input.
+  - Touch targets ≥ 44px.
+  - Clean error states and custom location submission trigger.
+
+### 5. Browser Verification & Edge Cache Verification
+- Visual inspection on desktop (1280px) and mobile (375px) with screenshots stored in `docs/steps/assets/03-*`.
+- Edge caching verification: test preview deployment web origin for `x-vercel-cache: HIT`.
 
 ---
 
-## Plan
+## Implementation Plan
 
-1. **Contracts & Validation First (`packages/types`, `packages/validation`)**:
-   - Define TypeScript interfaces and Zod schemas for `University`, `Campus`, `Category`, `Location`, and autocomplete query parameters.
-   - Add unit tests for schema validation.
+1. **Contracts & Validation First (`packages/types`, `@downtown/validation`)**:
+   - Types: `University`, `Campus`, `Category`, `Location`, `LocationType`, `CreateLocationInput`, `LocationAutocompleteQuery`.
+   - Zod schemas: category and location queries, custom location creation schema with phone/URL rejection and length bounds.
+   - Unit tests covering all validation rules.
 2. **Database Schema & Migrations (`apps/api`)**:
-   - Add Drizzle table definitions in `apps/api/src/db/schema.ts` with indexes and foreign keys.
-   - Run `pnpm --filter api db:generate` to produce SQL migration `0001_taxonomy_locations.sql`.
-   - Apply migration to dev Neon database via `pnpm --filter api db:migrate`.
-3. **Idempotent Reference Data Seed (`apps/api/src/db/seeds`)**:
-   - Create seed file for UNIOSUN campuses, categories, and curated locations using `ON CONFLICT DO NOTHING` / `upsert`.
-   - Add `db:seed:taxonomy` script and verify idempotency across successive runs.
-4. **Cacheable API Endpoints (`apps/api`)**:
-   - Implement `GET /api/categories` with public edge-cache headers.
-   - Implement `GET /api/locations/autocomplete` with campus filtering and search query parsing.
-   - Write integration tests covering pagination, filtering, search relevance, and cache headers.
+   - Tables: `universities`, `campuses`, `categories`, `locations` in `apps/api/src/db/schema.ts`.
+   - Migration enabling `pg_trgm` and adding trigram indexes.
+   - Run `pnpm --filter api db:generate` and `pnpm --filter api db:migrate`.
+   - Verify index usage via `EXPLAIN`.
+3. **Reference Data & CSV Loader (`apps/api/src/db/seeds`)**:
+   - Create `docs/data/student-areas.csv` (headers only).
+   - Implement `taxonomy-locations.ts` seed with UNIOSUN, 6 campuses, 6 campus locations, 9 categories, and CSV loader.
+   - Verify idempotency by running seed twice.
+4. **API Endpoints (`apps/api`)**:
+   - `GET /api/categories` with public edge cache headers.
+   - `GET /api/locations/autocomplete` with `pg_trgm` matching and privacy-filtered custom locations.
+   - `POST /api/locations` with auth, rate limit, normalization, duplicate handling, phone/URL rejection.
+   - Integration tests covering all endpoints, edge cases, and cache headers.
 5. **UI Primitives (`apps/web`)**:
-   - Implement `CategoryPills` following `DESIGN.md` guidelines (mobile-friendly horizontal scroll, accessible ARIA roles).
-   - Implement `LocationSelector` combobox dialog with touch targets ≥ 44px.
-   - Integrate both components into the homepage marketplace exploration view.
-6. **Automated Verification**:
-   - Run monorepo checks via `scripts/verify.ps1`.
-7. **Browser Verification & Screenshot Evidence**:
-   - Capture desktop (1280px) and mobile (375px) screenshots in `docs/steps/assets/03-*`.
-8. **Review & PR**:
-   - Open Pull Request, run `code-review` checks, and land via `--no-ff`.
+   - Build `CategoryPills` and `LocationSelector` using tokens from `DESIGN.md`.
+   - Add unit tests.
+   - Integrate into home exploration view.
+6. **Automated Verification & Browser Verification**:
+   - Run `.\scripts\verify.ps1`.
+   - Capture desktop and mobile screenshots with browser tool.
+7. **PR & Checkpoint**:
+   - Submit PR, review diff, merge with `--no-ff`, and log provenance.
 
 ---
 
-## Implementation
+## Implementation Notes & Discoveries
 
-<!-- Implementation decisions and discoveries will be recorded as work progresses -->
-
----
-
-## Verification
-
-<!-- Automated check results and screenshot links will be recorded here -->
+<!-- To be documented during execution -->
 
 ---
 
-## Diff / Checkpoint
+## Verification & Screenshots
 
-- Pull Request URL: Pending
-- First commit SHA: Pending
-- Last commit SHA: Pending
-- Merge commit SHA: Pending
+<!-- To be documented after verification -->
+
+---
+
+## Commit Provenance
+
+- **First Commit SHA**: `[Pending]`
+- **Last Commit SHA**: `[Pending]`
+- **PR URL**: `[Pending]`
+- **Merge Commit SHA**: `[Pending]`
