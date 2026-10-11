@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { auth } from "../services/auth.service";
 import { db } from "../db/index";
 import { user } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 
-describe("Better Auth & Security Integration Tests", () => {
+describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
   const uniqueId = Date.now().toString().slice(-6);
   const testStudentEmail = `student_${uniqueId}@example.com`;
   const testStaffEmail = `staff_${uniqueId}@example.com`;
@@ -132,7 +132,7 @@ describe("Better Auth & Security Integration Tests", () => {
     ).rejects.toThrow();
   });
 
-  it("6. Rejects client attempt to tamper with sellerStatus at signup (input: false)", async () => {
+  it("6. Rejects client attempt to tamper with sellerStatus and accountStatus at signup (input: false)", async () => {
     const email = `tamper_${uniqueId}@example.com`;
     const req = new Request("http://localhost:3000/api/auth/sign-up/email", {
       method: "POST",
@@ -147,6 +147,7 @@ describe("Better Auth & Security Integration Tests", () => {
         matricNumber: "UNIOSUN/2024/0001",
         password,
         sellerStatus: "verified", // Malicious attempt to self-verify
+        accountStatus: "banned", // Malicious attempt to tamper account status
       }),
     });
 
@@ -154,8 +155,9 @@ describe("Better Auth & Security Integration Tests", () => {
     expect(res.status).toBe(200);
 
     const data = await res.json();
-    // Must remain "not_a_seller"
+    // Must remain "not_a_seller" and "active"
     expect(data.user.sellerStatus).toBe("not_a_seller");
+    expect(data.user.accountStatus).toBe("active");
 
     const dbUser = await db
       .select()
@@ -163,6 +165,30 @@ describe("Better Auth & Security Integration Tests", () => {
       .where(eq(user.email, email))
       .limit(1);
     expect(dbUser[0].sellerStatus).toBe("not_a_seller");
+    expect(dbUser[0].accountStatus).toBe("active");
+  });
+
+  it("7. STRICTLY REJECTS student signup without matric number (confirms SignUpSchema runs in the hook)", async () => {
+    const req = new Request("http://localhost:3000/api/auth/sign-up/email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-forwarded-for": `10.10.6.${uniqueId.slice(-2)}`,
+      },
+      body: JSON.stringify({
+        role: "student",
+        name: "Student Without Matric",
+        email: `no_matric_${uniqueId}@example.com`,
+        password,
+      }),
+    });
+
+    const res = await auth.handler(req);
+    expect(res.status).toBe(400);
+
+    const data = await res.json();
+    expect(data.message).toBeDefined();
+    expect(data.message.toLowerCase()).toContain("matric");
   });
 
   describe("Anti-Enumeration Protections", () => {
@@ -281,5 +307,37 @@ describe("Better Auth & Security Integration Tests", () => {
       const resB = await auth.handler(reqB);
       expect(resB.status).not.toBe(429);
     }, 25000);
+
+    it("fails closed when client IP is missing or unresolvable by enforcing the shared fallback bucket", async () => {
+      // In Better Auth, missing or invalid IP falls back to `no-trusted-ip` (or 127.0.0.1 in test mode).
+      // Requests without a valid unique IP header share this bucket and are throttled after max attempts.
+      const targetPath = "http://localhost:3000/api/auth/sign-in/email";
+      let hitLimit = false;
+      for (let i = 0; i < 7; i++) {
+        const req = new Request(targetPath, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // Multi-hop untrusted proxy chain without trustedProxies configured resolves to null
+            "x-forwarded-for": "10.0.0.1, 10.0.0.2",
+          },
+          body: JSON.stringify({
+            email: `null_ip_${i}_${uniqueId}@example.com`,
+            password: "WrongPassword123!",
+          }),
+        });
+        const res = await auth.handler(req);
+        if (res.status === 429) {
+          hitLimit = true;
+          break;
+        }
+      }
+      expect(hitLimit).toBe(true);
+    }, 25000);
+  });
+
+  afterAll(async () => {
+    // Clean up only rows created during this test run (isolation for shared dev DB)
+    await db.delete(user).where(like(user.email, `%${uniqueId}%`));
   });
 });

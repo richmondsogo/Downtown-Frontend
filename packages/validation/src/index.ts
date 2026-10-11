@@ -56,7 +56,7 @@ export const StudentSignUpSchema = BaseSignUp.extend({
   role: z.literal("student"),
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
   matricNumber: z
-    .string()
+    .string({ required_error: "Matric number is required" })
     .trim()
     .min(1, "Matric number is required")
     .transform((val) => normalizeMatricNumber(val))

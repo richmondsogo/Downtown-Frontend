@@ -44,11 +44,15 @@ export const auth = betterAuth({
     "http://localhost:3001",
     "https://downtown-web-five.vercel.app",
     "https://downtown-api.vercel.app",
+    "https://*.vercel.app",
   ],
   advanced: {
-    trustedProxyHeaders: true,
     ipAddress: {
-      ipAddressHeaders: ["x-forwarded-for", "x-real-ip"],
+      ipAddressHeaders: [
+        "x-vercel-forwarded-for",
+        "x-real-ip",
+        "x-forwarded-for",
+      ],
     },
   },
   rateLimit: {
