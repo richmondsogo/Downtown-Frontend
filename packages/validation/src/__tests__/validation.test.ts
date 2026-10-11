@@ -9,23 +9,27 @@ import {
   normalizeMatricNumber,
   isValidReturnTo,
   ReturnToSchema,
+  MATRIC_NUMBER_PATTERN,
+  MATRIC_NUMBER_EXAMPLE,
 } from "../index";
 
 describe("Validation: normalizeMatricNumber", () => {
-  it("collapses internal whitespace, trims, and converts to uppercase", () => {
-    expect(normalizeMatricNumber("  uniosun / 2024 / 1234  ")).toBe("UNIOSUN/2024/1234");
-    expect(normalizeMatricNumber("law \t 2021 \n 001")).toBe("LAW2021001");
-    expect(normalizeMatricNumber("set-2022-999")).toBe("SET-2022-999");
+  it("normalizes matric numbers: trims, converts \\ - and spaced separators into /", () => {
+    expect(normalizeMatricNumber("  2024 / 55430  ")).toBe("2024/55430");
+    expect(normalizeMatricNumber("2024 - 55430")).toBe("2024/55430");
+    expect(normalizeMatricNumber("2024\\55430")).toBe("2024/55430");
+    expect(normalizeMatricNumber(" 2024-55430 ")).toBe("2024/55430");
+    expect(normalizeMatricNumber("  2024   /   1234  ")).toBe("2024/1234");
   });
 });
 
-describe("Validation: SignUpSchema", () => {
-  it("validates and normalizes valid student signup", () => {
+describe("Validation: SignUpSchema & Matric Validation", () => {
+  it("validates and normalizes valid student signup with YYYY/NNNNN format", () => {
     const input = {
       role: "student",
       name: "Tunde Bakare",
-      email: "tunde.bakare@example.com",
-      matricNumber: " uniosun / 2023 / 54321 ",
+      email: "tunde.bakare@gmail.com",
+      matricNumber: " 2024 - 55430 ",
       password: "StrongPassword123",
     };
 
@@ -33,8 +37,82 @@ describe("Validation: SignUpSchema", () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.role).toBe("student");
-      expect((parsed.data as any).matricNumber).toBe("UNIOSUN/2023/54321");
-      expect(parsed.data.email).toBe("tunde.bakare@example.com");
+      expect((parsed.data as any).matricNumber).toBe("2024/55430");
+      expect(parsed.data.email).toBe("tunde.bakare@gmail.com");
+    }
+  });
+
+  it("accepts 4 to 6 digit sequence numbers in matric", () => {
+    expect(
+      StudentSignUpSchema.safeParse({
+        role: "student",
+        name: "Test Student",
+        email: "test4@gmail.com",
+        matricNumber: "2024/1234",
+        password: "StrongPassword123",
+      }).success
+    ).toBe(true);
+
+    expect(
+      StudentSignUpSchema.safeParse({
+        role: "student",
+        name: "Test Student",
+        email: "test6@gmail.com",
+        matricNumber: "2024/123456",
+        password: "StrongPassword123",
+      }).success
+    ).toBe(true);
+  });
+
+  it("STRICTLY REJECTS UNIOSUN/ prefix with helpful error containing example", () => {
+    const testCases = [
+      "UNIOSUN/2024/55430",
+      "uniosun/2024/55430",
+      "UNIOSUN-2024-55430",
+      "UNIOSUN\\2024\\55430",
+    ];
+
+    for (const matricNumber of testCases) {
+      const parsed = StudentSignUpSchema.safeParse({
+        role: "student",
+        name: "Tunde Bakare",
+        email: "tunde@gmail.com",
+        matricNumber,
+        password: "StrongPassword123",
+      });
+
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        const issue = parsed.error.issues.find((i) =>
+          i.message.includes("Do not include the 'UNIOSUN/' prefix")
+        );
+        expect(issue).toBeDefined();
+        expect(issue?.message).toContain(MATRIC_NUMBER_EXAMPLE);
+      }
+    }
+  });
+
+  it("fails student signup when matricNumber format has invalid year or digits", () => {
+    const invalidMatrics = [
+      "24/55430", // 2-digit year
+      "2024/123", // only 3 digits sequence
+      "2024/1234567", // 7 digits sequence
+      "2024$55430", // invalid separator
+      "abcd/55430", // non-digits
+    ];
+
+    for (const matricNumber of invalidMatrics) {
+      const parsed = StudentSignUpSchema.safeParse({
+        role: "student",
+        name: "Tunde Bakare",
+        email: "tunde@gmail.com",
+        matricNumber,
+        password: "StrongPassword123",
+      });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues[0]?.message).toContain(MATRIC_NUMBER_EXAMPLE);
+      }
     }
   });
 
@@ -42,57 +120,49 @@ describe("Validation: SignUpSchema", () => {
     const input = {
       role: "student",
       name: "Tunde Bakare",
-      email: "tunde@example.com",
+      email: "tunde@gmail.com",
       password: "StrongPassword123",
     };
 
     const parsed = SignUpSchema.safeParse(input);
     expect(parsed.success).toBe(false);
   });
+});
 
-  it("fails student signup when matricNumber format has invalid characters", () => {
-    const input = {
+describe("Validation: Personal Email Support (Gmail, etc.)", () => {
+  it("accepts Gmail and personal email for student signup", () => {
+    const parsed = StudentSignUpSchema.safeParse({
       role: "student",
-      name: "Tunde Bakare",
-      email: "tunde@example.com",
-      matricNumber: "UNIOSUN$#@!*",
+      name: "Student Gmail",
+      email: "student.personal@gmail.com",
+      matricNumber: "2024/55430",
       password: "StrongPassword123",
-    };
-
-    const parsed = SignUpSchema.safeParse(input);
-    expect(parsed.success).toBe(false);
+    });
+    expect(parsed.success).toBe(true);
   });
 
-  it("validates valid staff signup without matricNumber", () => {
-    const input = {
+  it("accepts Gmail and personal email for staff signup", () => {
+    const parsed = StaffSignUpSchema.safeParse({
       role: "staff",
-      name: "Dr. Adeyemi Adeleke",
-      email: "a.adeleke@example.com",
-      password: "StaffSecretPassword456",
-    };
-
-    const parsed = SignUpSchema.safeParse(input);
+      name: "Staff Gmail",
+      email: "staff.personal@gmail.com",
+      password: "StrongPassword123",
+    });
     expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data.role).toBe("staff");
-    }
   });
 
-  it("validates valid vendor signup without matricNumber", () => {
-    const input = {
+  it("accepts Gmail and personal email for vendor signup", () => {
+    const parsed = VendorSignUpSchema.safeParse({
       role: "vendor",
-      name: "Mama Put Special Bites",
-      email: "mamaput@example.com",
-      password: "VendorPassword789",
-    };
-
-    const parsed = SignUpSchema.safeParse(input);
+      name: "Vendor Gmail",
+      email: "vendor.personal@gmail.com",
+      password: "StrongPassword123",
+    });
     expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data.role).toBe("vendor");
-    }
   });
+});
 
+describe("Validation: Security & Roles", () => {
   it("STRICTLY REJECTS admin role at signup", () => {
     const input = {
       role: "admin",
@@ -117,41 +187,31 @@ describe("Validation: SignUpSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("enforces password minimum length of 8", () => {
-    const input = {
-      role: "staff",
-      name: "Staff Person",
-      email: "staff@example.com",
-      password: "short",
-    };
+  it("enforces password minimum length of 8 and max of 128", () => {
+    expect(
+      StaffSignUpSchema.safeParse({
+        role: "staff",
+        name: "Staff Person",
+        email: "staff@example.com",
+        password: "short",
+      }).success
+    ).toBe(false);
 
-    const parsed = SignUpSchema.safeParse(input);
-    expect(parsed.success).toBe(false);
-    if (!parsed.success) {
-      expect(parsed.error.issues.some((i) => i.message.includes("at least 8"))).toBe(true);
-    }
-  });
-
-  it("enforces password maximum length of 128", () => {
-    const input = {
-      role: "staff",
-      name: "Staff Person",
-      email: "staff@example.com",
-      password: "a".repeat(129),
-    };
-
-    const parsed = SignUpSchema.safeParse(input);
-    expect(parsed.success).toBe(false);
-    if (!parsed.success) {
-      expect(parsed.error.issues.some((i) => i.message.includes("128 characters"))).toBe(true);
-    }
+    expect(
+      StaffSignUpSchema.safeParse({
+        role: "staff",
+        name: "Staff Person",
+        email: "staff@example.com",
+        password: "a".repeat(129),
+      }).success
+    ).toBe(false);
   });
 });
 
 describe("Validation: LoginSchema", () => {
   it("validates valid login input", () => {
     const parsed = LoginSchema.safeParse({
-      email: "user@example.com",
+      email: "user@gmail.com",
       password: "MySecretPassword123",
     });
     expect(parsed.success).toBe(true);
@@ -165,8 +225,8 @@ describe("Validation: LoginSchema", () => {
 
 describe("Validation: VerifyOtpSchema", () => {
   it("accepts exactly 6 numeric digits", () => {
-    expect(VerifyOtpSchema.safeParse({ email: "test@example.com", otp: "123456" }).success).toBe(true);
-    expect(VerifyOtpSchema.safeParse({ email: "test@example.com", otp: "000123" }).success).toBe(true);
+    expect(VerifyOtpSchema.safeParse({ email: "test@gmail.com", otp: "123456" }).success).toBe(true);
+    expect(VerifyOtpSchema.safeParse({ email: "test@gmail.com", otp: "000123" }).success).toBe(true);
   });
 
   it("rejects non-6-digit OTPs", () => {

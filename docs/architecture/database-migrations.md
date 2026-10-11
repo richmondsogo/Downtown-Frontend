@@ -67,3 +67,34 @@ Integration tests must **never** run against the production database:
 Downtown uses `@neondatabase/serverless` with WebSockets (`drizzle-orm/neon-serverless` + `Pool`), **not** `drizzle-orm/neon-http`.
 - `neon-http` is stateless HTTP and cannot hold open interactive transactions across multiple queries.
 - `drizzle-orm/neon-serverless` with `Pool` supports full interactive transactions (`db.transaction(...)`), which is mandatory for atomic multi-statement operations such as inventory reservation in purchase flows (Steps 07–08).
+
+---
+
+## 5. Production Migration Guard & Verification Protocol
+
+To prevent accidental migrations against incorrect endpoints or developer oversight, production migrations and schema seeding are strictly guarded by `scripts/run-prod-migrations.ps1`.
+
+### Protocol & Safety Guarantees
+
+1. **Air-Gapped Credentials**:
+   - The production database connection string is stored strictly in `.env.prod.secret` at the repository root.
+   - `.env.prod.secret` is permanently gitignored, must never be printed to stdout, echoed into logs, or deleted by automated agents.
+2. **Mandatory Host Confirmation (`CONFIRM_PROD_HOST`)**:
+   - `scripts/run-prod-migrations.ps1` extracts and prints exclusively the target database hostname (e.g. `ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech`).
+   - The script strictly demands that the environment variable `CONFIRM_PROD_HOST` (or the parameter `-ConfirmHost`) matches the target hostname. If they differ or the variable is unset, the script immediately aborts without touching the database.
+3. **Post-Merge Execution & Table Audit**:
+   - After each merged step that introduces schema migrations, run migrations against production via this script:
+     ```powershell
+     $env:CONFIRM_PROD_HOST = "<target-neon-prod-host>"
+     .\scripts\run-prod-migrations.ps1
+     ```
+   - The runner executes all pending migrations inside a transaction and outputs the current list of public tables:
+     ```json
+     [
+       "account",
+       "rate_limit",
+       "session",
+       "user",
+       "verification"
+     ]
+     ```

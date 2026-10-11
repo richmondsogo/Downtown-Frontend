@@ -51,18 +51,28 @@ describe("Web Auth & Safety UI Contract Tests", () => {
       });
       expect(resInvalid.success).toBe(false);
 
-      // Valid matric with whitespace
+      // Valid matric with whitespace and separator variations
       const resValid = SignUpSchema.safeParse({
         role: "student",
         name: "Bolaji",
-        email: "bolaji@example.com",
-        matricNumber: " uniosun / 2024 / 1234 ",
+        email: "bolaji@gmail.com",
+        matricNumber: " 2024 - 55430 ",
         password: "ValidPassword123!",
       });
       expect(resValid.success).toBe(true);
       if (resValid.success && resValid.data.role === "student") {
-        expect(resValid.data.matricNumber).toBe("UNIOSUN/2024/1234");
+        expect(resValid.data.matricNumber).toBe("2024/55430");
       }
+
+      // Rejects UNIOSUN/ prefix
+      const resPrefix = SignUpSchema.safeParse({
+        role: "student",
+        name: "Bolaji",
+        email: "bolaji@gmail.com",
+        matricNumber: "UNIOSUN/2024/55430",
+        password: "ValidPassword123!",
+      });
+      expect(resPrefix.success).toBe(false);
     });
 
     it("Staff and Vendor registration do not accept or require matric numbers", () => {

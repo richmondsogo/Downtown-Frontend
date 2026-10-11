@@ -94,6 +94,7 @@ The following patterns add visual noise, degrade low-end Android performance, an
 - **No excessive card nesting**: Avoid cards inside cards inside cards.
 - **No pill containers for content**: Keep borders restrained to subtle rectangles with `radius-md` or `radius-lg`.
 - **No unprompted scroll/entrance animations**: Avoid bouncy entrance transitions and scroll-driven parallax.
+- **No hardcoded colors, spacing or one-off page styles**: All styling goes through design tokens and shared components; no hardcoded colors, spacing or one-off styles in pages. A design pass will restyle later.
 
 ---
 
