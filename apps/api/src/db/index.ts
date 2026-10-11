@@ -1,6 +1,16 @@
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
+import * as schema from "./schema";
+
+import dotenv from "dotenv";
+import path from "path";
+
+if (!process.env.DATABASE_URL) {
+  dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+  dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+  dotenv.config({ path: path.resolve(process.cwd(), "apps/api/.env") });
+}
 
 /**
  * Neon Serverless PostgreSQL connection using WebSocket Pool.
@@ -17,7 +27,8 @@ if (!process.env.VERCEL) {
 }
 
 export const pool = new Pool({ connectionString });
-export const db = drizzle(pool);
+export const db = drizzle(pool, { schema });
+export * from "./schema";
 
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {

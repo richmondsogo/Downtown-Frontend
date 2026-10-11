@@ -66,7 +66,7 @@ Implement full authentication and account management for Downtown: contract-firs
    - Matric number: validation regex placed in `packages/validation` (not `packages/config`); collapse internal whitespace and uppercase in normalization.
    - Implement `canSell(user)` in `packages/utils/src/index.ts` (single source of truth).
    - Set up Vitest test runner and write unit tests for validation schemas and utils.
-   - Record [ADR 0003](file:///docs/adr/0003-neon-region-nigerian-latency.md) and document migration lifecycle in `docs/database-migrations.md`.
+   - Record [ADR 0003](file:///docs/adr/0003-neon-region-nigerian-latency.md) and document migration lifecycle in `docs/architecture/database-migrations.md`.
 
 2. **Commit 2: Backend Auth Service (Better Auth, Drizzle, Migrations, Seed)**
    - Author [ADR 0004](file:///docs/adr/0004-auth-library-selection.md) recommending Better Auth with Drizzle adapter and OTP verification.

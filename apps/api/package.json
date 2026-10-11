@@ -7,13 +7,19 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
     "@downtown/types": "workspace:*",
     "@downtown/utils": "workspace:*",
     "@downtown/validation": "workspace:*",
     "@neondatabase/serverless": "^1.2.0",
+    "better-auth": "^1.7.7",
+    "dotenv": "^18.0.7",
     "drizzle-orm": "^0.45.3",
     "next": "^15.2.0",
     "react": "^19.0.0",
@@ -27,6 +33,7 @@
     "@types/react-dom": "^19.0.4",
     "@types/ws": "^8.18.2",
     "drizzle-kit": "^0.30.5",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.2"
   }
 }

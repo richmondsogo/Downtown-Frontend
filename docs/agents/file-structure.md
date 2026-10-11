@@ -25,6 +25,7 @@ starter-repo/
 ├── docs/                    # Persistent documentation
 │   ├── adr/                 # Architecture Decision Records
 │   ├── agents/              # Agent operating guides and reference docs
+│   ├── architecture/        # System and infrastructure architecture guides
 │   └── steps/               # Sequential step execution logs
 ├── scripts/                 # Automation and developer tooling scripts
 ├── src/                     # Application source code (created as project evolves)
@@ -70,6 +71,7 @@ Contains repository-local agent configuration:
 
 All persistent project documentation lives here:
 - `docs/adr/` — Architecture Decision Records following `docs/adr/0000-template.md`.
+- `docs/architecture/` — System and infrastructure architecture guides (e.g. database migrations, networking).
 - `docs/steps/` — Step execution logs following `docs/steps/00-plan-template.md`.
 - `docs/agents/` — Reference documents for agents:
   - `skills.md` — Skills reference and usage guidelines.
@@ -118,6 +120,7 @@ All test suites that verify application behavior:
 | What are you adding? | Where does it go? | Example Path |
 |---|---|---|
 | Architecture decision record | `docs/adr/` | `docs/adr/0001-use-postgres.md` |
+| System/infrastructure architecture guide | `docs/architecture/` | `docs/architecture/database-migrations.md` |
 | Step execution plan & log | `docs/steps/` | `docs/steps/01-auth-flow.md` |
 | Agent reference document | `docs/agents/` | `docs/agents/api-contracts.md` |
 | New reusable agent skill | `.agents/skills/<name>/` | `.agents/skills/data-migration/SKILL.md` |

@@ -26,7 +26,7 @@ Run the generation command from the API workspace:
 ```bash
 pnpm --filter api db:generate
 ```
-Drizzle Kit computes the diff between current TypeScript schemas and previously generated snapshots, producing a numbered SQL file in `apps/api/src/db/migrations/` (e.g., `0000_init_auth.sql`).
+Drizzle Kit computes the diff between current TypeScript schemas and previously generated snapshots, producing a numbered SQL file in `apps/api/src/db/migrations/` (e.g., `0000_breezy_pete_wisdom.sql`).
 
 ### Stage 3: Review Diff
 Inspect the generated `.sql` file in `apps/api/src/db/migrations/`:
