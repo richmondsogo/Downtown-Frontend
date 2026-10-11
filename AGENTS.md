@@ -77,7 +77,7 @@ Do not create random files or drop scripts into arbitrary locations. Adhere to t
 - Do not introduce infrastructure there is no demonstrated need for.
 - Follow directory placement rules in [`docs/agents/file-structure.md`](./docs/agents/file-structure.md).
 - Do not modify files unrelated to the current task.
-- Never expose, log, or commit secrets, credentials, or API keys.
+- Never expose, log, commit, or type secrets, credentials, or connection strings into commands or CLI arguments. Always read secrets from gitignored files or interactive prompts.
 - Preserve the project design system. See [`DESIGN.md`](./DESIGN.md).
 - Use available skills and MCPs when they materially improve the task.
 
