@@ -2,7 +2,7 @@
 
 **Step Branch**: `step/01-monorepo-scaffold`  
 **Primary Branch**: `master`  
-**Pull Request**: `Pending`  
+**Pull Request**: [#2 (Merged)](https://github.com/richmondsogo/Downtown-Frontend/pull/2)  
 
 ---
 
@@ -83,11 +83,15 @@ Scaffold the complete Turborepo workspace structure for Downtown: shared TypeScr
 
 ## Diff / Checkpoint
 
-- Pull Request URL:
-- First commit SHA:
-- Last commit SHA:
-- Merge commit SHA:
+- Pull Request URL: https://github.com/richmondsogo/Downtown-Frontend/pull/2
+- First commit SHA: `be057b0`
+- Last commit SHA: `aa1b7b0`
+- Merge commit SHA: `98ef5c571099a8f1696ea96f4142f539393c995d`
 - Merge strategy: Standard merge commit (`--no-ff`)
+- Cloud Infrastructure:
+  - Neon PostgreSQL: Project `still-water-88128815` ("Downtown", `aws-us-east-2`), pooled connection tested.
+  - Vercel API: `https://downtown-api.vercel.app` (Deployment ID: `dpl_59etGWbQ2UKf6FKeXsXCfmLaMhBg`). Verified `GET /health` returns HTTP 200 with `{"database":{"connected":true}}`.
+  - Vercel Web: `https://downtown-web-five.vercel.app` (Deployment ID: `dpl_vhrGqNpbY7nADtGbpPrnV9vLabNK`). Verified HTTP 200 with mobile-first landing and DESIGN.md tokens.
 
 ---
 

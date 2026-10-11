@@ -38,6 +38,7 @@ build/
 .cache/
 .turbo/
 *.tsbuildinfo
+.vercel
 
 # ─── Python ──────────────────────────────────────────────────────────────────
 __pycache__/
@@ -64,3 +65,5 @@ htmlcov/
 # ─── MCP / Agent local config ────────────────────────────────────────────────
 # Commit the .example file; never commit real configs with credentials.
 .agents/mcp_config.json
+
+.env*
