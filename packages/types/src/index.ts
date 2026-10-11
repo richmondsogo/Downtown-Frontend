@@ -13,14 +13,21 @@ export type SellerType =
   | "staff"
   | "vendor";
 
+export type AccountStatus = "active" | "suspended" | "banned";
+
 export interface User {
   id: string;
-  role: Role;
+  name: string;
   email: string;
+  emailVerified: boolean;
+  image?: string | null;
+  role: Role;
   phone?: string | null;
-  displayName: string;
-  emailVerifiedAt?: Date | string | null;
+  matricNumber?: string | null;
+  sellerStatus: SellerStatus;
+  accountStatus: AccountStatus;
   createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export interface SellerProfile {
@@ -31,52 +38,6 @@ export interface SellerProfile {
   businessCategory?: string | null;
   bio?: string | null;
   verifiedAt?: Date | string | null;
-}
-
-export type ListingStatus =
-  | "draft"
-  | "pending_moderation"
-  | "published"
-  | "reserved"
-  | "sold"
-  | "archived";
-
-export interface Listing {
-  id: string;
-  sellerId: string;
-  categoryId: string;
-  title: string;
-  description: string;
-  price: number;
-  isNegotiable: boolean;
-  condition: string;
-  locationId: string;
-  quantityAvailable: number;
-  quantityReserved: number;
-  photos: string[];
-  status: ListingStatus;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-}
-
-export type PurchaseRequestStatus =
-  | "pending"
-  | "completed"
-  | "disputed"
-  | "expired"
-  | "cancelled";
-
-export interface PurchaseRequest {
-  id: string;
-  listingId: string;
-  buyerId: string;
-  sellerId: string;
-  requestedQuantity: number;
-  unitPrice: number;
-  offerPrice?: number | null;
-  status: PurchaseRequestStatus;
-  createdAt: Date | string;
-  expiresAt: Date | string;
 }
 
 export interface HealthResponse {

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { SellerStatus } from "@downtown/types";
 
 /**
  * Combines Tailwind classes cleanly resolving conflicts.
@@ -21,27 +22,13 @@ export function formatNaira(amount: number): string {
 }
 
 /**
- * Generates standardized pre-filled WhatsApp handoff message per GOAL.md Section 7.1.
+ * Single source of truth for seller capability across Downtown.
+ * A user can sell if and only if their sellerStatus is strictly "verified".
+ * No other seller permission logic may be defined anywhere in the codebase.
  */
-export function generateWhatsAppMessage(options: {
-  sellerName: string;
-  itemTitle: string;
-  price: number;
-  dateListed?: string;
-  offerPrice?: number | null;
-}): string {
-  const { sellerName, itemTitle, price, dateListed, offerPrice } = options;
-  if (offerPrice && offerPrice > 0) {
-    return `Hi ${sellerName}, I saw your ${itemTitle} on Downtown for ${formatNaira(price)}. I'd like to offer ${formatNaira(offerPrice)}. Is it still available?`;
-  }
-  const dateStr = dateListed ? ` listed on Downtown on ${dateListed}` : " listed on Downtown";
-  return `Hi ${sellerName}, I saw your ${itemTitle}${dateStr} for ${formatNaira(price)}. Is it still available?`;
-}
-
-/**
- * Encodes a phone number and message into a WhatsApp Click-to-Chat URL.
- */
-export function buildWhatsAppUrl(phone: string, message: string): string {
-  const cleanPhone = phone.replace(/[^0-9]/g, "");
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+export function canSell(
+  user: { sellerStatus: SellerStatus } | null | undefined
+): boolean {
+  if (!user) return false;
+  return user.sellerStatus === "verified";
 }
