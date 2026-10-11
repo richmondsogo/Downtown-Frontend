@@ -2,7 +2,7 @@
 
 **Step Branch**: `step/02d-spec-corrections`  
 **Primary Branch**: `master`  
-**Pull Request**: `[Pending]`  
+**Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/6  
 
 ---
 
@@ -127,8 +127,8 @@ Address specification corrections, origin narrowing, domain & matric validation 
 
 ## Commit Provenance
 
-- **First Commit SHA**: `[Pending]`
-- **Last Commit SHA**: `[Pending]`
-- **PR URL**: `[Pending]`
-- **Merge Commit SHA**: `[Pending]`
+- **First Commit SHA**: `24dfd89`
+- **Last Commit SHA**: `24dfd89`
+- **PR URL**: https://github.com/richmondsogo/Downtown-Frontend/pull/6
+- **Merge Commit SHA**: `fdd212dab164059f86ce36f46af78cc2a9b60815`
 
