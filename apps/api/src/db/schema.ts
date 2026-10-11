@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, bigint, check } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, bigint, check, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const user = pgTable(
@@ -67,3 +67,61 @@ export const rateLimit = pgTable("rate_limit", {
   count: integer("count").notNull(),
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
+
+export const university = pgTable("university", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  shortCode: text("short_code").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const campus = pgTable("campus", {
+  id: text("id").primaryKey(),
+  universityId: text("university_id")
+    .notNull()
+    .references(() => university.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  code: text("code").notNull().unique(),
+  address: text("address"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const category = pgTable("category", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  icon: text("icon"),
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const location = pgTable(
+  "location",
+  {
+    id: text("id").primaryKey(),
+    campusId: text("campus_id")
+      .notNull()
+      .references(() => campus.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    type: text("type").notNull().default("campus"),
+    isCurated: boolean("is_curated").notNull().default(false),
+    creatorId: text("creator_id").references(() => user.id, { onDelete: "set null" }),
+    usageCount: integer("usage_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("location_type_check", sql`${table.type} IN ('campus', 'student_area', 'custom')`),
+    index("location_campus_idx").on(table.campusId),
+    index("location_curated_idx").on(table.isCurated),
+    index("location_creator_idx").on(table.creatorId),
+    index("location_campus_curated_idx").on(table.campusId, table.isCurated),
+    index("location_name_lower_idx").on(sql`lower(${table.name})`),
+    index("location_name_trgm_idx").using("gin", sql`${table.name} gin_trgm_ops`),
+  ]
+);
+

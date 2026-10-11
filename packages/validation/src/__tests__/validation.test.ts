@@ -11,6 +11,11 @@ import {
   ReturnToSchema,
   MATRIC_NUMBER_PATTERN,
   MATRIC_NUMBER_EXAMPLE,
+  normalizeLocationName,
+  containsPhoneNumber,
+  containsUrl,
+  CreateLocationSchema,
+  LocationAutocompleteQuerySchema,
 } from "../index";
 
 describe("Validation: normalizeMatricNumber", () => {
@@ -257,3 +262,94 @@ describe("Validation: isValidReturnTo & ReturnToSchema", () => {
     expect(ReturnToSchema.safeParse("https://evil.com").success).toBe(false);
   });
 });
+
+describe("Validation: Location & Custom Location Guardrails", () => {
+  it("normalizes location names by trimming and collapsing multiple spaces", () => {
+    expect(normalizeLocationName("  Al-Hassan   Hostel  ")).toBe("Al-Hassan Hostel");
+    expect(normalizeLocationName("Main   Gate")).toBe("Main Gate");
+    expect(normalizeLocationName("")).toBe("");
+  });
+
+  it("detects phone numbers and sequences of digits in location names", () => {
+    expect(containsPhoneNumber("Hostel Call 08031234567")).toBe(true);
+    expect(containsPhoneNumber("Call +234 803 123 4567")).toBe(true);
+    expect(containsPhoneNumber("Room 1234567")).toBe(true);
+    expect(containsPhoneNumber("Hostel Block 3")).toBe(false);
+    expect(containsPhoneNumber("ETF Building Room 12")).toBe(false);
+  });
+
+  it("detects URLs and web links in location names", () => {
+    expect(containsUrl("Hostel see http://hostel.com")).toBe(true);
+    expect(containsUrl("Visit https://downtown.ng")).toBe(true);
+    expect(containsUrl("Visit www.studentlodge.com")).toBe(true);
+    expect(containsUrl("Find us at lodge.ng")).toBe(true);
+    expect(containsUrl("Normal Hostel Osogbo")).toBe(false);
+  });
+
+  it("accepts valid custom location input and transforms name", () => {
+    const parsed = CreateLocationSchema.safeParse({
+      campusId: "campus_123",
+      name: "  Green   Villa   Lodge  ",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.name).toBe("Green Villa Lodge");
+      expect(parsed.data.campusId).toBe("campus_123");
+    }
+  });
+
+  it("rejects location names shorter than 3 characters or longer than 80 characters", () => {
+    expect(
+      CreateLocationSchema.safeParse({ campusId: "campus_123", name: "AB" }).success
+    ).toBe(false);
+    expect(
+      CreateLocationSchema.safeParse({
+        campusId: "campus_123",
+        name: "A".repeat(81),
+      }).success
+    ).toBe(false);
+  });
+
+  it("rejects custom location names containing phone numbers", () => {
+    const res = CreateLocationSchema.safeParse({
+      campusId: "campus_123",
+      name: "Hostel Contact 08031234567",
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.issues[0]?.message).toContain("phone numbers");
+    }
+  });
+
+  it("rejects custom location names containing URLs or links", () => {
+    const res = CreateLocationSchema.safeParse({
+      campusId: "campus_123",
+      name: "Hostel at https://hostels.ng",
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.issues[0]?.message).toContain("URLs");
+    }
+  });
+
+  it("validates location autocomplete queries with defaults and length limits", () => {
+    const defaultQuery = LocationAutocompleteQuerySchema.safeParse({});
+    expect(defaultQuery.success).toBe(true);
+    if (defaultQuery.success) {
+      expect(defaultQuery.data.q).toBe("");
+      expect(defaultQuery.data.campusId).toBeUndefined();
+    }
+
+    const filteredQuery = LocationAutocompleteQuerySchema.safeParse({
+      q: "Hostel",
+      campusId: "campus_123",
+    });
+    expect(filteredQuery.success).toBe(true);
+
+    const tooLong = LocationAutocompleteQuerySchema.safeParse({
+      q: "x".repeat(85),
+    });
+    expect(tooLong.success).toBe(false);
+  });
+});
+

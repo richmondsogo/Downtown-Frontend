@@ -8,6 +8,13 @@
       "when": 1791721641886,
       "tag": "0000_breezy_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791751106208,
+      "tag": "0001_groovy_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }
