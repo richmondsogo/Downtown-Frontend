@@ -127,6 +127,22 @@ export const auth = betterAuth({
             message: firstErr,
           });
         }
+
+        // Production signup flag guard (defaults to disabled in production until domain is configured)
+        const isProd =
+          process.env.VERCEL_ENV === "production" ||
+          process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+        const isSignupDisabled =
+          process.env.ENABLE_SIGNUP === "false" ||
+          (isProd && process.env.ENABLE_SIGNUP !== "true");
+
+        if (isSignupDisabled) {
+          throw new APIError("FORBIDDEN", {
+            message:
+              "Student registration is currently disabled ahead of MVP launch on November 30, 2026.",
+          });
+        }
+
         // Normalize role and matricNumber into request body
         ctx.body = {
           ...body,

@@ -107,9 +107,42 @@ export class ResendEmailService implements EmailService {
   }
 }
 
+/**
+ * Production email service when real provider is not yet enabled.
+ * Strictly avoids logging OTP tokens or reset secrets to stdout.
+ */
+export class ProductionEmailService implements EmailService {
+  async sendVerificationOtp(to: string, _otp: string): Promise<void> {
+    const masked = to.replace(/(?<=^.).+(?=@)/, "***");
+    console.info(
+      `[EMAIL SERVICE (PROD)] Outbound OTP delivery suppressed for ${masked}: domain configuration pending.`
+    );
+    throw new Error(
+      "Outbound verification email is disabled in production pending domain setup. Contact support."
+    );
+  }
+
+  async sendPasswordResetEmail(to: string, _resetUrl: string): Promise<void> {
+    const masked = to.replace(/(?<=^.).+(?=@)/, "***");
+    console.info(
+      `[EMAIL SERVICE (PROD)] Outbound password reset suppressed for ${masked}: domain configuration pending.`
+    );
+    throw new Error(
+      "Outbound password reset email is disabled in production pending domain setup. Contact support."
+    );
+  }
+}
+
 export function getEmailService(): EmailService {
   if (process.env.RESEND_API_KEY && process.env.ENABLE_RESEND_EMAIL === "true") {
     return new ResendEmailService();
   }
+  const isVercelProd =
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+  if (isVercelProd) {
+    return new ProductionEmailService();
+  }
   return new ConsoleEmailService();
 }
+
