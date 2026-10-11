@@ -131,19 +131,43 @@ Implement full authentication and account management for Downtown: contract-firs
 
 ## Verification
 
-- `https://downtown-api.vercel.app/health`: HTTP 200 OK (`database: { connected: true }`).
-- `https://downtown-web-five.vercel.app/api/health`: HTTP 200 OK (`database: { connected: true }`).
+1. **Central Verification Runner (`scripts/verify.ps1`)**:
+   - 12/12 checks passing (Git availability, no tracked secrets, workspace manifests, Node.js LTS, pnpm, Turborepo, TypeScript typecheck across 6 packages, Vitest automated tests across 4 suites, and Next.js monorepo production build).
+
+2. **Automated Test Suites (41 tests passing)**:
+   - `@downtown/validation`: 16 unit tests passing (discriminated union signup, matric normalization, email normalization, password constraints, OTP format, returnTo same-origin validation).
+   - `@downtown/utils`: 9 unit tests passing (`canSell(user)` matrix and currency formatting).
+   - `apps/api`: 9 security & auth integration tests passing against dedicated Neon dev branch (`ep-shiny-credit-baedn5p1-pooler.c-8.eu-central-1.aws.neon.tech`):
+     - Role registration (student, staff, vendor) with normalized matric number and `sellerStatus: "not_a_seller"`.
+     - Strict rejection of `role: "admin"` at schema level.
+     - Database CHECK constraint `user_role_check` preventing raw SQL insertion of `role: "admin"`.
+     - Prevention of client tampering with `sellerStatus` at signup (`input: false`).
+     - Anti-enumeration: identical status and message for unknown email vs wrong password on sign-in.
+     - Anti-enumeration: identical status for password reset on known vs unknown email.
+     - DB-backed rate limiting keyed on real client IP (`x-forwarded-for`/`x-real-ip`) ensuring separate IP buckets.
+   - `apps/web`: 7 contract and safety tests passing (open redirect protection, role validation rules, OTP regex, password length).
+
+3. **Production Build & Route Verification**:
+   - `apps/api` dynamic route `ƒ /api/auth/[...all]` and `ƒ /health`.
+   - `apps/web` pages: `/` (with soft-gate modal), `/login`, `/signup`, `/verify-email`, `/forgot-password`, `/reset-password`.
+   - Live HTTP requests verified returning 200 OK across all auth endpoints.
+
+4. **Remote Cloud Deployments**:
+   - `https://downtown-api.vercel.app/health`: HTTP 200 OK (`database: { connected: true }`).
+   - `https://downtown-web-five.vercel.app/api/health`: HTTP 200 OK (`database: { connected: true }`).
 
 ---
 
 ## Diff / Checkpoint
 
 - Active Neon Project ID: `misty-paper-37733898` (AWS Europe Central 1 Frankfurt - `aws-eu-central-1`)
+- Neon Dev Branch Endpoint: `ep-shiny-credit-baedn5p1-pooler.c-8.eu-central-1.aws.neon.tech/neondb`
+- Neon Prod Branch Endpoint: `ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech/neondb`
 - Vercel Function Regions: `fra1` (Frankfurt)
-- Pull Request URL: `[Pending]`
-- First commit SHA: `[Pending]`
-- Last commit SHA: `[Pending]`
-- Merge commit SHA: `[Pending]`
+- Pull Request URL: https://github.com/richmondsogo/Downtown-Frontend/pull/3
+- First commit SHA: `5917360bb718d7aa66a4f5b248a803f268b8a5fc`
+- Last commit SHA: `9df9a6c76fb9738efaa471dfc8fa40ce208eb60a`
+- Merge commit SHA: `6c0a47936a71bbfeeb5faea3b9e4ec30592f7e75`
 - Merge strategy: Standard merge commit (`--no-ff`)
 
 ---
@@ -158,3 +182,4 @@ None.
 
 - **ADR 0003**: Neon Database Region vs. Nigerian Latency Evaluation (Accepted: `aws-eu-central-1` Frankfurt).
 - **ADR 0004**: Auth Library Selection (Better Auth with Drizzle Adapter & Email OTP).
+
