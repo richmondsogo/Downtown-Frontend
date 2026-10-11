@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { auth } from "../services/auth.service";
 import { db } from "../db/index";
 import { user } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 
 describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
   const uniqueId = Date.now().toString().slice(-6);
@@ -307,5 +307,37 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       const resB = await auth.handler(reqB);
       expect(resB.status).not.toBe(429);
     }, 25000);
+
+    it("fails closed when client IP is missing or unresolvable by enforcing the shared fallback bucket", async () => {
+      // In Better Auth, missing or invalid IP falls back to `no-trusted-ip` (or 127.0.0.1 in test mode).
+      // Requests without a valid unique IP header share this bucket and are throttled after max attempts.
+      const targetPath = "http://localhost:3000/api/auth/sign-in/email";
+      let hitLimit = false;
+      for (let i = 0; i < 7; i++) {
+        const req = new Request(targetPath, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // Multi-hop untrusted proxy chain without trustedProxies configured resolves to null
+            "x-forwarded-for": "10.0.0.1, 10.0.0.2",
+          },
+          body: JSON.stringify({
+            email: `null_ip_${i}_${uniqueId}@example.com`,
+            password: "WrongPassword123!",
+          }),
+        });
+        const res = await auth.handler(req);
+        if (res.status === 429) {
+          hitLimit = true;
+          break;
+        }
+      }
+      expect(hitLimit).toBe(true);
+    }, 25000);
+  });
+
+  afterAll(async () => {
+    // Clean up only rows created during this test run (isolation for shared dev DB)
+    await db.delete(user).where(like(user.email, `%${uniqueId}%`));
   });
 });

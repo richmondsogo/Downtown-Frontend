@@ -44,6 +44,7 @@ export const auth = betterAuth({
     "http://localhost:3001",
     "https://downtown-web-five.vercel.app",
     "https://downtown-api.vercel.app",
+    "https://*.vercel.app",
   ],
   advanced: {
     ipAddress: {
