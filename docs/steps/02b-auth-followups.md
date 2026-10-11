@@ -107,20 +107,55 @@ Conducted two-axis review of the Step 02 diff (`42f5b24...6c0a479`):
 ### Automated Checks
 - `scripts/verify.ps1`: **12 of 12 checks passed** (Git state, clean secrets, package manifests, turbo, Node 22, pnpm, typecheck, automated tests, monorepo build).
 - `apps/api/src/__tests__/email-service.test.ts`: **4 of 4 passed** (throws in production, allows preview, allows development, allows build phase).
-- `apps/api/src/__tests__/auth-integration.test.ts`: **10 of 10 passed** (including raw POST tests for admin rejection, tampering immunity, and matric enforcement).
+- `apps/api/src/__tests__/auth-integration.test.ts`: **11 of 11 passed** (including raw POST tests for admin rejection, tampering immunity, matric enforcement, DB row cleanup, and null-IP fail-closed enforcement). Total suite: **15 of 15 tests passed**.
+
+### Live Preview IP Bucketing & Anti-Spoofing Verification
+Tested against deployed Vercel preview domain (`https://downtown-em3dqew3f-richmondsogo.vercel.app`):
+1. **Resolved IP Accuracy**:
+   - The resolved IP matched the caller's real public IP (`102.221.89.122`).
+   - Source header: `x-vercel-forwarded-for` (injected and verified by Vercel's edge proxy).
+2. **Anti-Spoofing Immunity**:
+   - Injected client headers `X-Forwarded-For: 203.0.113.195` and `x-vercel-forwarded-for: 198.51.100.77` were discarded/overwritten by the edge layer.
+   - The rate limiter evaluated `102.221.89.122`, preventing spoofed evasion.
+3. **Threshold Enforcement Across Serverless Invocations**:
+   - First 5 requests to `/api/auth/sign-in/email` returned HTTP 400 (Invalid email or password).
+   - 6th request returned HTTP 429 (`TOO_MANY_REQUESTS`) with header `Retry-After: 60`, proving persistent bucket enforcement.
+4. **Null-IP Fail-Closed Behavior**:
+   - In Better Auth (`@better-auth/core/dist/api/rate-limiter/index.mjs`), if client IP is null or unresolvable, the key falls back to `no-trusted-ip|<path>`.
+   - Requests lacking a valid trusted IP share this single fallback bucket and trip rate limiting immediately once the threshold is reached. Tested via unit/integration test.
+5. **Next.js Web->API Rewrite Fidelity**:
+   - Next.js rewrite in `apps/web/next.config.js` transparently forwards platform headers to `downtown-api`, preserving client IPs without requiring custom signed secret wrappers.
 
 ### Real Browser Verification & Screenshots
-Captured via Chrome DevTools in real browser sessions:
-- **Soft-gate Guest Modal (Desktop 1280px)**: [02-softgate-guest-1280.png](./assets/02-softgate-guest-1280.png)
-- **Soft-gate Guest Modal (Mobile 375px)**: [02-softgate-guest-375.png](./assets/02-softgate-guest-375.png)
-- **Student Signup Page (Desktop 1280px)**: [02-signup-student-1280.png](./assets/02-signup-student-1280.png)
-- **Student Signup Page (Mobile 375px)**: [02-signup-student-375.png](./assets/02-signup-student-375.png)
+Captured in local and preview browser sessions via Chrome DevTools MCP:
+- **Login Page**:
+  - Desktop (1280px): [02-login-1280.png](./assets/02-login-1280.png)
+  - Mobile (375px): [02-login-375.png](./assets/02-login-375.png)
+- **Forgot Password Page**:
+  - Desktop (1280px): [02-forgot-password-1280.png](./assets/02-forgot-password-1280.png)
+  - Mobile (375px): [02-forgot-password-375.png](./assets/02-forgot-password-375.png)
+- **Verify Email OTP Screen**:
+  - Desktop (1280px): [02-verify-email-1280.png](./assets/02-verify-email-1280.png)
+  - Mobile (375px): [02-verify-email-375.png](./assets/02-verify-email-375.png)
+- **Student Signup Page**:
+  - Desktop (1280px): [02-signup-student-1280.png](./assets/02-signup-student-1280.png)
+  - Mobile (375px): [02-signup-student-375.png](./assets/02-signup-student-375.png)
+- **Soft-gate Guest Modal**:
+  - Desktop (1280px): [02-softgate-modal-1280.png](./assets/02-softgate-modal-1280.png)
+  - Mobile (375px): [02-softgate-modal-375.png](./assets/02-softgate-modal-375.png)
+- **Soft-gate Resumed State (Authenticated Deals Flow)**:
+  - Desktop (1280px): [02-softgate-resumed-1280.png](./assets/02-softgate-resumed-1280.png)
+  - Mobile (375px): [02-softgate-resumed-375.png](./assets/02-softgate-resumed-375.png)
+- **Authenticated Header (Name, Role Badge, Verified Seller Badge)**:
+  - Desktop (1280px): [02-auth-header-1280.png](./assets/02-auth-header-1280.png)
+  - Mobile (375px): [02-auth-header-375.png](./assets/02-auth-header-375.png)
 
 ---
 
 ## Diff / Checkpoint
 
-- Pull Request URL: Pending
-- First commit SHA: Pending
-- Last commit SHA: Pending
-- Merge commit SHA: Pending
+- Pull Request URL: https://github.com/richmondsogo/Downtown-Frontend/pull/4
+- First commit SHA: `8710172`
+- Last commit SHA: `[To be updated on merge]`
+- Merge commit SHA: `[To be updated on merge]`
+

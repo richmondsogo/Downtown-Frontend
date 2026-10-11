@@ -22,7 +22,7 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not defined in environment variables");
 }
 
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && typeof WebSocket === "undefined") {
   neonConfig.webSocketConstructor = ws;
 }
 
