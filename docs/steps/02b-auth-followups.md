@@ -156,6 +156,6 @@ Captured in local and preview browser sessions via Chrome DevTools MCP:
 
 - Pull Request URL: https://github.com/richmondsogo/Downtown-Frontend/pull/4
 - First commit SHA: `8710172`
-- Last commit SHA: `[To be updated on merge]`
-- Merge commit SHA: `[To be updated on merge]`
+- Last commit SHA: `e5bb7af`
+- Merge commit SHA: `73844d77f2fc1542ddda7300df96de182e1d325f`
 
