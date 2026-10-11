@@ -98,3 +98,11 @@ Campus e-commerce, student identity verification, listing moderation, peer-to-pe
 - **ADR 0001**: Web-First Launch (Next.js responsive web application prioritized for November 30, 2026 launch; React Native / Expo native mobile builds deferred to post-MVP).
 - **Ephemeral Student ID Pipeline**: Automated OCR/verification with immediate file destruction, retaining only ID fingerprint hash for fraud detection.
 - **WhatsApp Pre-Filled Handoff**: Standardized WhatsApp message generation paired with a 24-hour inventory reservation and dual-confirmation reconciliation loop.
+
+## Spec Amendments (Deviations from GOAL.md)
+
+1. **Matric Number Format**: Format is strictly `YYYY/NNNNN` (e.g., `2024/55430`), not `UNIOSUN/2024/55430`; students enter the 4-digit academic entry year and sequential identifier without university prefix.
+2. **Personal Student & Seller Emails**: Student and seller emails are personal (Gmail, Yahoo, etc.); email ownership never proves student status, which is established exclusively through student ID card verification.
+3. **Staff Verification Mechanism**: Staff verification requires either an official-domain allowlist (`STAFF_OFFICIAL_EMAIL_DOMAINS`, empty by default) or staff ID photo review via the admin queue, never generic email OTP alone (recorded in [ADR 0006](docs/adr/0006-staff-verification.md)).
+4. **ID Reuse Detection**: Account duplicate prevention uses a keyed HMAC of the admin-confirmed matric number rather than an image hash, ensuring reliable deduplication invariant to camera lighting, rotation, or photo compression.
+5. **Web-First Launch**: Next.js responsive web application prioritized for launch; React Native / Expo mobile application development deferred to post-MVP per [ADR 0001](docs/adr/0001-web-first-launch.md).

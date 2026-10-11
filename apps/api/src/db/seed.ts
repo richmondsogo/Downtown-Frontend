@@ -66,7 +66,7 @@ async function seed() {
         email: studentEmail,
         emailVerified: true,
         role: "student",
-        matricNumber: "UNIOSUN/2023/1001",
+        matricNumber: "2023/1001",
         sellerStatus: "verified", // Flipped to verified seller
         accountStatus: "active",
       });

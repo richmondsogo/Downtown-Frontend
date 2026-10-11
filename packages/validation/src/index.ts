@@ -22,17 +22,23 @@ export const SellerTypeEnum = z.enum([
 export const AccountStatusEnum = z.enum(["active", "suspended", "banned"]);
 
 /**
- * Configurable matric number format regex.
- * Kept in packages/validation per architecture rules.
+ * Single exported matric number regex and example format.
+ * Format is YYYY/NNNNN (e.g. 2024/55430), NOT UNIOSUN/2024/55430.
  */
-export const MATRIC_NUMBER_REGEX = /^[A-Za-z0-9\/\-_]{6,25}$/;
+export const MATRIC_NUMBER_PATTERN = /^\d{4}\/\d{4,6}$/;
+export const MATRIC_NUMBER_EXAMPLE = "2024/55430";
 
 /**
- * Normalizes a matric number by trimming, collapsing internal whitespace,
- * and converting to uppercase.
+ * Normalizes a matric number:
+ * - trim leading/trailing whitespace
+ * - treat \, -, and spaces around the separator as /
+ * - collapse any remaining whitespace
  */
 export function normalizeMatricNumber(matric: string): string {
-  return matric.trim().replace(/\s+/g, "").toUpperCase();
+  return matric
+    .trim()
+    .replace(/\s*([\\/\-])\s*/g, "/")
+    .replace(/\s+/g, "");
 }
 
 /**
@@ -59,10 +65,25 @@ export const StudentSignUpSchema = BaseSignUp.extend({
     .string({ required_error: "Matric number is required" })
     .trim()
     .min(1, "Matric number is required")
-    .transform((val) => normalizeMatricNumber(val))
-    .refine((val) => MATRIC_NUMBER_REGEX.test(val), {
-      message: "Invalid matric number format",
-    }),
+    .superRefine((val, ctx) => {
+      const trimmed = val.trim();
+      if (/^UNIOSUN/i.test(trimmed)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Do not include the 'UNIOSUN/' prefix. Example: ${MATRIC_NUMBER_EXAMPLE}`,
+        });
+        return;
+      }
+      const normalized = normalizeMatricNumber(trimmed);
+      if (!MATRIC_NUMBER_PATTERN.test(normalized)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Invalid matric number format. Example: ${MATRIC_NUMBER_EXAMPLE}`,
+        });
+        return;
+      }
+    })
+    .transform((val) => normalizeMatricNumber(val)),
 });
 
 export const StaffSignUpSchema = BaseSignUp.extend({

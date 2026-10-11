@@ -93,7 +93,7 @@ function LoginContent() {
             <Input
               id="email"
               type="email"
-              placeholder="name@student.uniosun.edu.ng"
+              placeholder="name@example.com"
               autoComplete="email"
               required
               value={email}

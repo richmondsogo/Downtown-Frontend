@@ -9,6 +9,39 @@ import { SignUpSchema, normalizeMatricNumber } from "@downtown/validation";
 
 const emailService = getEmailService();
 
+export const PROD_WEB_ORIGIN =
+  process.env.BETTER_AUTH_URL || "https://downtown-web-five.vercel.app";
+
+/**
+ * Derives trustedOrigins based on deployment environment.
+ * - In production: trusts ONLY the production web origin (never wildcards or bare *.vercel.app).
+ * - In preview/dev: trusts localhost and our own project's preview patterns (downtown-web-*),
+ *   never a bare *.vercel.app.
+ */
+export function getTrustedOrigins(
+  env: Partial<Record<string, string>> = process.env
+): string[] {
+  const isProd =
+    env.VERCEL_ENV === "production" ||
+    env.NEXT_PUBLIC_VERCEL_ENV === "production";
+
+  const prodOrigin =
+    env.BETTER_AUTH_URL || "https://downtown-web-five.vercel.app";
+
+  if (isProd) {
+    return [prodOrigin];
+  }
+
+  return [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    prodOrigin,
+    "https://downtown-web-*.vercel.app",
+    "https://downtown-web-*-richmondsogo.vercel.app",
+    "https://downtown-*-richmondsogo.vercel.app",
+  ];
+}
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -39,13 +72,7 @@ export const auth = betterAuth({
     process.env.BETTER_AUTH_SECRET ||
     "downtown-dev-secret-replace-in-production-12345678901234567890",
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  trustedOrigins: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://downtown-web-five.vercel.app",
-    "https://downtown-api.vercel.app",
-    "https://*.vercel.app",
-  ],
+  trustedOrigins: getTrustedOrigins(),
   advanced: {
     ipAddress: {
       ipAddressHeaders: [
@@ -138,8 +165,7 @@ export const auth = betterAuth({
 
         if (isSignupDisabled) {
           throw new APIError("FORBIDDEN", {
-            message:
-              "Student registration is currently disabled ahead of MVP launch on November 30, 2026.",
+            message: "Registration is not open yet.",
           });
         }
 

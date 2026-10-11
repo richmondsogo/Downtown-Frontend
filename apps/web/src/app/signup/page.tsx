@@ -9,6 +9,7 @@ import {
   isValidReturnTo,
   normalizeEmail,
   normalizeMatricNumber,
+  MATRIC_NUMBER_EXAMPLE,
 } from "@downtown/validation";
 import type { SignupRole } from "@downtown/validation";
 import { Button } from "@/components/ui/button";
@@ -182,17 +183,16 @@ function SignupContent() {
             <Input
               id="email"
               type="email"
-              placeholder={
-                role === "student"
-                  ? "student@uniosun.edu.ng or personal email"
-                  : "yourname@example.com"
-              }
+              placeholder="name@example.com"
               autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
             />
+            <p className="text-[11px] text-muted-foreground">
+              Use an email you check often. We&apos;ll send a code to it.
+            </p>
           </div>
 
           {role === "student" && (
@@ -202,13 +202,13 @@ function SignupContent() {
                   Matric Number
                 </Label>
                 <span className="text-[10px] text-muted-foreground">
-                  e.g. UNIOSUN/2024/1234
+                  e.g. {MATRIC_NUMBER_EXAMPLE}
                 </span>
               </div>
               <Input
                 id="matricNumber"
                 type="text"
-                placeholder="UNIOSUN/2024/0001"
+                placeholder={MATRIC_NUMBER_EXAMPLE}
                 autoCapitalize="characters"
                 required
                 value={matricNumber}

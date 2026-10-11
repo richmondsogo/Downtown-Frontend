@@ -78,7 +78,7 @@ Do not create random files or drop scripts into arbitrary locations. Adhere to t
 - Follow directory placement rules in [`docs/agents/file-structure.md`](./docs/agents/file-structure.md).
 - Do not modify files unrelated to the current task.
 - Never expose, log, commit, or type secrets, credentials, or connection strings into commands or CLI arguments. Always read secrets from gitignored files or interactive prompts.
-- Preserve the project design system. See [`DESIGN.md`](./DESIGN.md).
+- Preserve the project design system. See [`DESIGN.md`](./DESIGN.md). All styling goes through design tokens and shared components; no hardcoded colors, spacing or one-off styles in pages. A design pass will restyle later.
 - Use available skills and MCPs when they materially improve the task.
 
 ---

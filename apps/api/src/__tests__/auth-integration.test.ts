@@ -22,7 +22,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
         role: "student",
         name: "Test Student",
         email: testStudentEmail,
-        matricNumber: " uniosun / 2024 / 9999 ",
+        matricNumber: " 2024 - 9999 ",
         password,
       }),
     });
@@ -34,7 +34,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
     expect(data.user).toBeDefined();
     expect(data.user.email).toBe(testStudentEmail);
     expect(data.user.role).toBe("student");
-    expect(data.user.matricNumber).toBe("UNIOSUN/2024/9999");
+    expect(data.user.matricNumber).toBe("2024/9999");
     expect(data.user.sellerStatus).toBe("not_a_seller");
 
     // Verify in database
@@ -44,7 +44,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       .where(eq(user.email, testStudentEmail))
       .limit(1);
     expect(dbUsers.length).toBe(1);
-    expect(dbUsers[0].matricNumber).toBe("UNIOSUN/2024/9999");
+    expect(dbUsers[0].matricNumber).toBe("2024/9999");
     expect(dbUsers[0].sellerStatus).toBe("not_a_seller");
   });
 
@@ -144,7 +144,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
         role: "student",
         name: "Tamper Student",
         email,
-        matricNumber: "UNIOSUN/2024/0001",
+        matricNumber: "2024/0001",
         password,
         sellerStatus: "verified", // Malicious attempt to self-verify
         accountStatus: "banned", // Malicious attempt to tamper account status
@@ -168,7 +168,29 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
     expect(dbUser[0].accountStatus).toBe("active");
   });
 
-  it("7. STRICTLY REJECTS student signup without matric number (confirms SignUpSchema runs in the hook)", async () => {
+  it("7. STRICTLY REJECTS student signup with UNIOSUN/ prefix", async () => {
+    const req = new Request("http://localhost:3000/api/auth/sign-up/email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-forwarded-for": `10.10.5.99`,
+      },
+      body: JSON.stringify({
+        role: "student",
+        name: "Prefix Student",
+        email: `prefix_${uniqueId}@gmail.com`,
+        matricNumber: "UNIOSUN/2024/0001",
+        password,
+      }),
+    });
+
+    const res = await auth.handler(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.message).toContain("Do not include the 'UNIOSUN/' prefix");
+  });
+
+  it("8. STRICTLY REJECTS student signup without matric number (confirms SignUpSchema runs in the hook)", async () => {
     const req = new Request("http://localhost:3000/api/auth/sign-up/email", {
       method: "POST",
       headers: {
@@ -225,7 +247,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
 
       expect(resKnown.status).toBe(resUnknown.status);
       expect(dataKnown.message).toBe(dataUnknown.message);
-    });
+    }, 45000);
 
     it("returns identical status for password reset on known vs unknown email", async () => {
       // 1. Known email
