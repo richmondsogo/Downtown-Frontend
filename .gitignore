@@ -36,6 +36,8 @@ build/
 .nuxt/
 .output/
 .cache/
+.turbo/
+*.tsbuildinfo
 
 # ─── Python ──────────────────────────────────────────────────────────────────
 __pycache__/
