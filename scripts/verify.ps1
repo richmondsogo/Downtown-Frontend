@@ -117,6 +117,20 @@ Run-Check "Turborepo operational" {
 
 Write-Host ""
 
+# ---- Monorepo Typecheck & Build ---------------------------------------------
+
+Write-Host "Workspace verification:" -ForegroundColor White
+
+Run-Check "TypeScript typecheck" {
+    pnpm run check-types
+}
+
+Run-Check "Monorepo build" {
+    pnpm run build
+}
+
+Write-Host ""
+
 # ---- Summary ----------------------------------------------------------------
 
 $total = $passed + $failed + $skipped
