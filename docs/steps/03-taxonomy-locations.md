@@ -112,13 +112,47 @@ Establish contract-first domain taxonomy and location models, seed reference dat
 
 ## Implementation Notes & Discoveries
 
-<!-- To be documented during execution -->
+1. **PostgreSQL `pg_trgm` Extension & GIN Indexes**:
+   - `pg_trgm` extension was enabled in migration `0001_groovy_supreme_intelligence.sql`.
+   - Added GIN trigram index `location_name_trgm_idx` (`USING gin (name gin_trgm_ops)`) and B-Tree prefix index `location_name_lower_idx` (`lower(name)`).
+   - Verified via `EXPLAIN` query plan with `enable_seqscan = off` to confirm bitmap index scan path on candidate autocomplete queries.
+2. **Category Names & Slugs**:
+   - Strictly matched GOAL.md section 5.3: Electronics (`electronics`), Fashion & Accessories (`fashion-accessories`), Food & Drinks (`food-drinks`), Home & Living (`home-living`), Books & Study Materials (`books-study-materials`), Beauty & Personal Care (`beauty-personal-care`), Services (`services`), Tickets & Events (`tickets-events`), Other (`other`). No subcategories in v1.
+3. **Reference Data & Student-Areas Loader**:
+   - Seeded University (UNIOSUN), 6 Campuses (`osogbo`, `ikire`, `okuku`, `ifetedo`, `ipetu-ijesha`, `ejigbo` - marked *to be confirmed by founders*), and exactly 1 curated location per campus (`type=campus`).
+   - Sourced student areas strictly through `docs/data/student-areas.csv` (initialized with headers only).
+   - Seed script `pnpm --filter api db:seed:taxonomy` verified idempotent across successive executions.
+4. **Custom Location Submission & Privacy Filtering**:
+   - `POST /api/locations` requires session authentication and is rate limited (5 requests / 10 minutes per user).
+   - Rejects names containing phone numbers (e.g. Nigerian phone patterns) or URLs.
+   - Case-insensitive deduplication within campus (`isDuplicate: true`).
+   - Autocomplete privacy model: public queries receive ONLY curated locations (`isCurated = true`), whereas authenticated callers receive curated locations plus their own custom uncurated submissions (`creatorId = session.userId`).
+5. **Edge Cache Headers**:
+   - Categories: `Cache-Control: public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800`.
+   - Autocomplete: `Cache-Control: public, max-age=10, s-maxage=60, stale-while-revalidate=300` (for public queries); `private, no-cache, no-store, must-revalidate` (for authenticated queries).
+6. **Design System & Styling Discipline**:
+   - Built `CategoryPills` and `LocationSelector` strictly using CSS variables and semantic design tokens from `DESIGN.md`. Minimum 44px tap targets for mobile usability.
 
 ---
 
 ## Verification & Screenshots
 
-<!-- To be documented after verification -->
+### 1. Verification Suite (`scripts/verify.ps1`)
+- **Status**: `12 passed, 0 failed, 0 skipped (of 12 checks)`
+- Typecheck: 5/5 packages clean.
+- Unit & integration tests:
+  - `@downtown/validation`: 26/26 passed (location normalization, phone/URL rejection, query schemas).
+  - `@downtown/api`: 31/31 passed (taxonomy, locations autocomplete, rate limiting, and custom location creation).
+  - `@downtown/web`: 14/14 passed (taxonomy UI contracts, category switching, combobox validation).
+- Monorepo build: Turborepo completed production builds of `api` and `web`.
+
+### 2. Browser Verification Artifacts
+- **Mobile Viewport (375x812)**:
+  ![Mobile Viewport 375px](file:///c:/Users/Richmond/Desktop/Open%20Source%20Projects/DOWNTOWN/Downtown-Frontend/docs/steps/assets/03-mobile-375px.png)
+- **Mobile Location Dropdown**:
+  ![Mobile Location Combobox](file:///c:/Users/Richmond/Desktop/Open%20Source%20Projects/DOWNTOWN/Downtown-Frontend/docs/steps/assets/03-mobile-location-dropdown.png)
+- **Desktop Viewport (1280x800)**:
+  ![Desktop Viewport 1280px](file:///c:/Users/Richmond/Desktop/Open%20Source%20Projects/DOWNTOWN/Downtown-Frontend/docs/steps/assets/03-desktop-1280px.png)
 
 ---
 
@@ -128,3 +162,4 @@ Establish contract-first domain taxonomy and location models, seed reference dat
 - **Last Commit SHA**: `[Pending]`
 - **PR URL**: `[Pending]`
 - **Merge Commit SHA**: `[Pending]`
+

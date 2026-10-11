@@ -160,3 +160,62 @@ export function isValidReturnTo(url: string | null | undefined): boolean {
 export const ReturnToSchema = z.string().refine(isValidReturnTo, {
   message: "returnTo must be a same-origin relative path",
 });
+
+/**
+ * Normalizes location names: trims leading/trailing whitespace and collapses internal multiple spaces.
+ */
+export function normalizeLocationName(name: string): string {
+  if (!name) return "";
+  return name.trim().replace(/\s+/g, " ");
+}
+
+const PHONE_PATTERN = /(?:\+?234|0)?[789][01]\d{8}/;
+const URL_PATTERN = /(?:https?:\/\/|www\.)[^\s]+|\b[a-zA-Z0-9-]+\.(?:com|ng|edu|org|net|gov|app|io|co)\b/i;
+
+/**
+ * Checks whether a text contains phone numbers or sequential digits likely to be phone numbers.
+ */
+export function containsPhoneNumber(text: string): boolean {
+  if (PHONE_PATTERN.test(text.replace(/[\s-]/g, ""))) return true;
+  const digitsOnly = text.replace(/\D/g, "");
+  return digitsOnly.length >= 7;
+}
+
+/**
+ * Checks whether a text contains a URL or domain reference.
+ */
+export function containsUrl(text: string): boolean {
+  return URL_PATTERN.test(text);
+}
+
+export const LocationTypeSchema = z.enum(["campus", "student_area", "custom"]);
+
+export const CreateLocationSchema = z.object({
+  campusId: z.string().trim().min(1, "Campus ID is required"),
+  name: z
+    .string()
+    .transform(normalizeLocationName)
+    .pipe(
+      z
+        .string()
+        .min(3, "Location name must be at least 3 characters")
+        .max(80, "Location name cannot exceed 80 characters")
+        .refine((val) => !containsPhoneNumber(val), {
+          message: "Location name cannot contain phone numbers",
+        })
+        .refine((val) => !containsUrl(val), {
+          message: "Location name cannot contain web links or URLs",
+        })
+    ),
+});
+export type CreateLocationInput = z.infer<typeof CreateLocationSchema>;
+
+export const LocationAutocompleteQuerySchema = z.object({
+  q: z
+    .string()
+    .max(80, "Search query cannot exceed 80 characters")
+    .optional()
+    .default(""),
+  campusId: z.string().trim().optional(),
+});
+export type LocationAutocompleteQuery = z.infer<typeof LocationAutocompleteQuerySchema>;

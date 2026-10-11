@@ -49,3 +49,65 @@ export interface HealthResponse {
     connected: boolean;
   };
 }
+
+export type LocationType = "campus" | "student_area" | "custom";
+
+export interface University {
+  id: string;
+  name: string;
+  slug: string;
+  shortCode: string;
+  createdAt: Date | string;
+}
+
+export interface Campus {
+  id: string;
+  universityId: string;
+  name: string;
+  slug: string;
+  code: string;
+  address?: string | null;
+  createdAt: Date | string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: Date | string;
+}
+
+export interface Location {
+  id: string;
+  campusId: string;
+  name: string;
+  slug: string;
+  type: LocationType;
+  isCurated: boolean;
+  creatorId?: string | null;
+  usageCount: number;
+  createdAt: Date | string;
+}
+
+export interface LocationAutocompleteItem {
+  id: string;
+  campusId: string;
+  name: string;
+  slug: string;
+  type: LocationType;
+  isCurated: boolean;
+}
+
+export interface CreateLocationInput {
+  campusId: string;
+  name: string;
+}
+
+export interface LocationAutocompleteQuery {
+  q?: string;
+  campusId?: string;
+}
