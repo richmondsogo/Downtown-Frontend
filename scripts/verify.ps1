@@ -125,6 +125,10 @@ Run-Check "TypeScript typecheck" {
     pnpm run check-types
 }
 
+Run-Check "Automated tests" {
+    pnpm run test
+}
+
 Run-Check "Monorepo build" {
     pnpm run build
 }
