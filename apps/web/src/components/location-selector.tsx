@@ -57,7 +57,8 @@ export function LocationSelector({
 }: LocationSelectorProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [results, setResults] = React.useState<LocationItem[]>([]);
+  const [curatedResults, setCuratedResults] = React.useState<LocationItem[]>([]);
+  const [myLocations, setMyLocations] = React.useState<LocationItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -73,7 +74,38 @@ export function LocationSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch autocomplete results whenever search query or selected campus changes
+  // Fetch user's custom locations when open or when campus filter changes
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    let isCancelled = false;
+    async function fetchMyLocations() {
+      try {
+        const params = new URLSearchParams();
+        if (selectedCampusId) params.set("campusId", selectedCampusId);
+
+        const res = await fetch(`/api/locations/mine?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled && Array.isArray(data)) {
+            setMyLocations(data);
+          }
+        } else {
+          // Unauthenticated or not available -> clear custom list gracefully
+          if (!isCancelled) setMyLocations([]);
+        }
+      } catch {
+        if (!isCancelled) setMyLocations([]);
+      }
+    }
+
+    fetchMyLocations();
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, selectedCampusId]);
+
+  // Fetch public autocomplete results whenever search query or selected campus changes
   React.useEffect(() => {
     if (!isOpen) return;
 
@@ -90,7 +122,7 @@ export function LocationSelector({
         if (!res.ok) throw new Error("Failed to load locations");
         const data = await res.json();
         if (!isCancelled) {
-          setResults(Array.isArray(data) ? data : []);
+          setCuratedResults(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         if (!isCancelled) {
@@ -109,6 +141,26 @@ export function LocationSelector({
       clearTimeout(timer);
     };
   }, [isOpen, searchQuery, selectedCampusId]);
+
+  // Client-side merge: combine public curated results and user custom locations
+  const results = React.useMemo(() => {
+    const qLower = searchQuery.trim().toLowerCase();
+    const matchedMyLocations = myLocations.filter((ml) => {
+      if (selectedCampusId && ml.campusId !== selectedCampusId) return false;
+      if (!qLower) return true;
+      return ml.name.toLowerCase().includes(qLower);
+    });
+
+    const existingIds = new Set(curatedResults.map((c) => c.id));
+    const merged = [...curatedResults];
+    for (const ml of matchedMyLocations) {
+      if (!existingIds.has(ml.id)) {
+        merged.push(ml);
+        existingIds.add(ml.id);
+      }
+    }
+    return merged;
+  }, [curatedResults, myLocations, searchQuery, selectedCampusId]);
 
   const selectedCampusName =
     campuses.find((c) => c.id === selectedCampusId)?.name || "All Campuses";
@@ -141,6 +193,10 @@ export function LocationSelector({
       try {
         const result = await onCreateLocation(selectedCampusId, normalized);
         if (result?.location) {
+          setMyLocations((prev) => [
+            result.location,
+            ...prev.filter((l) => l.id !== result.location.id),
+          ]);
           onSelectLocation(result.location);
           setIsOpen(false);
           setSearchQuery("");

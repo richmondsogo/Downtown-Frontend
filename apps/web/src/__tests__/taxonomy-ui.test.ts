@@ -112,5 +112,53 @@ describe("Taxonomy & Location UI Primitives Contract Tests", () => {
       });
       expect(excessiveQuery.success).toBe(false);
     });
+
+    it("verifies client-side merge logic combining curated and custom locations", () => {
+      const curatedResults = [
+        { id: "loc_1", campusId: "campus_osogbo", name: "Main Gate", slug: "main-gate", type: "campus", isCurated: true },
+        { id: "loc_2", campusId: "campus_osogbo", name: "ETF Hall", slug: "etf-hall", type: "campus", isCurated: true },
+      ];
+
+      const myLocations = [
+        { id: "loc_custom_1", campusId: "campus_osogbo", name: "My Hostel", slug: "my-hostel", type: "custom", isCurated: false },
+        { id: "loc_custom_2", campusId: "campus_ikire", name: "Ikire Lodge", slug: "ikire-lodge", type: "custom", isCurated: false },
+      ];
+
+      // Merge function representing LocationSelector's useMemo
+      function mergeLocations(
+        curated: typeof curatedResults,
+        custom: typeof myLocations,
+        campusId: string | null,
+        query: string
+      ) {
+        const qLower = query.trim().toLowerCase();
+        const matchedCustom = custom.filter((ml) => {
+          if (campusId && ml.campusId !== campusId) return false;
+          if (!qLower) return true;
+          return ml.name.toLowerCase().includes(qLower);
+        });
+
+        const existingIds = new Set(curated.map((c) => c.id));
+        const merged = [...curated];
+        for (const ml of matchedCustom) {
+          if (!existingIds.has(ml.id)) {
+            merged.push(ml);
+            existingIds.add(ml.id);
+          }
+        }
+        return merged;
+      }
+
+      // 1. With Osogbo campus filter and no query
+      const osogboMerged = mergeLocations(curatedResults, myLocations, "campus_osogbo", "");
+      expect(osogboMerged.length).toBe(3); // loc_1, loc_2, loc_custom_1
+      expect(osogboMerged.some((l) => l.id === "loc_custom_1")).toBe(true);
+      expect(osogboMerged.some((l) => l.id === "loc_custom_2")).toBe(false);
+
+      // 2. With query filtering custom locations
+      const queryMerged = mergeLocations(curatedResults, myLocations, "campus_osogbo", "hostel");
+      expect(queryMerged.length).toBe(3);
+      expect(queryMerged.find((l) => l.id === "loc_custom_1")?.isCurated).toBe(false);
+    });
   });
 });
