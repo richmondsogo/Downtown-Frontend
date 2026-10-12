@@ -125,7 +125,10 @@ let activeStorageService: StorageService | null = null;
 export function getStorageService(): StorageService {
   if (activeStorageService) return activeStorageService;
 
-  if (process.env.STORAGE_PROVIDER === "vercel_blob") {
+  if (
+    process.env.STORAGE_PROVIDER === "vercel_blob" ||
+    (Boolean(process.env.VERCEL) && process.env.STORAGE_PROVIDER !== "memory")
+  ) {
     activeStorageService = new VercelBlobStorageService();
   } else {
     activeStorageService = new InMemoryStorageService();
