@@ -88,7 +88,7 @@ export async function processListingPhoto(
       fit: "inside",
       withoutEnlargement: true,
     })
-    .webp({ quality: 80 });
+    .webp({ quality: 78 });
 
   const displayBuffer = await displayPipeline.toBuffer();
   const displayMetadata = await sharp(displayBuffer).metadata();
@@ -99,7 +99,7 @@ export async function processListingPhoto(
       fit: "inside",
       withoutEnlargement: true,
     })
-    .webp({ quality: 75 });
+    .webp({ quality: 70 });
 
   const thumbBuffer = await thumbPipeline.toBuffer();
 

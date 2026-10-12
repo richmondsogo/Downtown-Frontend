@@ -11,7 +11,7 @@ import { POST as submitListingHandler } from "../app/api/listings/[id]/submit/ro
 import { POST as uploadPhotoHandler } from "../app/api/listings/photos/route";
 import { DELETE as deletePhotoHandler } from "../app/api/listings/photos/[id]/route";
 import { pool, db } from "../db/index";
-import { user, listing, listingPhoto, moderationRecord } from "../db/schema";
+import { user, listing, listingPhoto, moderationRecord, appRateLimit } from "../db/schema";
 import { eq, sql } from "drizzle-orm";
 import { auth } from "../services/auth.service";
 import { listingService } from "../services/listing.service";
@@ -226,6 +226,49 @@ describe("Listing Creation & Photo Pipeline Integration Suite", () => {
       expect(res.status).toBe(400);
       const data = await res.json();
       expect(data.message).toContain("Unsupported file signature");
+    });
+
+    it("rejects oversize uploads exceeding 4.5 MB with 413", async () => {
+      const oversizeBuffer = Buffer.alloc(4.6 * 1024 * 1024);
+      const req = new NextRequest("http://localhost:3000/api/listings/photos", {
+        method: "POST",
+        headers: {
+          cookie: sellerBCookie,
+          "content-type": "application/octet-stream",
+        },
+        body: new Uint8Array(oversizeBuffer),
+      });
+
+      const res = await uploadPhotoHandler(req);
+      expect(res.status).toBe(413);
+      const data = await res.json();
+      expect(data.message).toContain("4.5 MB size limit");
+    });
+
+    it("enforces photo upload rate limit with 429 when 10 uploads/min limit exceeded", async () => {
+      const { checkRateLimit } = await import("../services/rate-limit.service");
+      const rlKey = `photo_upload:${sellerBId}`;
+      for (let i = 0; i < 10; i++) {
+        await checkRateLimit(rlKey, 10, 60 * 1000);
+      }
+
+      const rlImage = await createTestImageBuffer();
+      const req = new NextRequest("http://localhost:3000/api/listings/photos", {
+        method: "POST",
+        headers: {
+          cookie: sellerBCookie,
+          "content-type": "application/octet-stream",
+        },
+        body: new Uint8Array(rlImage),
+      });
+
+      const res = await uploadPhotoHandler(req);
+      expect(res.status).toBe(429);
+      const data = await res.json();
+      expect(data.message).toContain("Too many photo uploads");
+
+      // Clean up rate limit key immediately so sellerB is unaffected in other tests
+      await db.delete(appRateLimit).where(sql`${appRateLimit.key} LIKE ${`%${sellerBId}%`}`);
     });
 
     it("uploads valid image and returns WebP display and thumb variants", async () => {
@@ -448,6 +491,38 @@ describe("Listing Creation & Photo Pipeline Integration Suite", () => {
       const resB = await getMyListingsHandler(reqB);
       const listB = await resB.json();
       expect(listB.find((l: any) => l.id === listingAId)).toBeUndefined();
+    });
+
+    it("rejects submission with 6 photos (max 5 allowed) with 400", async () => {
+      const draft = await listingService.createDraft(sellerAId, {
+        title: "Test Draft with 6 photos",
+        price: 2000,
+        categoryId: "cat_books_study_materials",
+        locationId: "loc_campus_osogbo",
+      });
+
+      const req = new NextRequest(`http://localhost:3000/api/listings/${draft.id}/submit`, {
+        method: "POST",
+        headers: { cookie: sellerACookie },
+        body: JSON.stringify({
+          title: "Valid Title Here",
+          description: "Valid description of adequate length for listing.",
+          price: 2500,
+          isNegotiable: false,
+          categoryId: "cat_books_study_materials",
+          condition: "good",
+          locationId: "loc_campus_osogbo",
+          quantityAvailable: 1,
+          photoIds: ["p1", "p2", "p3", "p4", "p5", "p6"],
+        }),
+      });
+
+      const res = await submitListingHandler(req, {
+        params: Promise.resolve({ id: draft.id }),
+      });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.message).toContain("Maximum 5 photos allowed");
     });
   });
 
@@ -713,6 +788,88 @@ describe("Listing Creation & Photo Pipeline Integration Suite", () => {
 
       // Clean up fresh test photo
       await listingService.deletePhoto(sellerBId, `pht_fresh_orphan_${suffix}`);
+    });
+
+    it("preserves database record for retry when storage provider throws during deletePhoto", async () => {
+      const storage = getStorageService() as InMemoryStorageService;
+      const imageBuffer = await createTestImageBuffer();
+      const photo = await listingService.uploadPhoto(sellerBId, imageBuffer);
+
+      // Mock storage.delete to simulate an upstream provider outage
+      const originalDelete = storage.delete;
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      storage.delete = vi.fn().mockRejectedValue(new Error("Vercel Blob 503 Service Unavailable"));
+
+      try {
+        await expect(
+          listingService.deletePhoto(sellerBId, photo.id)
+        ).rejects.toThrow("Storage provider failed to delete image");
+
+        // Verify error was logged without silent swallowing
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("[Storage Error] Failed to delete photo blobs")
+        );
+
+        // Verify photo DB record is preserved and detached for orphan sweeper retry
+        const [photoInDb] = await db
+          .select()
+          .from(listingPhoto)
+          .where(eq(listingPhoto.id, photo.id));
+        expect(photoInDb).toBeDefined();
+        expect(photoInDb?.listingId).toBeNull();
+      } finally {
+        storage.delete = originalDelete;
+        consoleErrorSpy.mockRestore();
+        await db.delete(listingPhoto).where(eq(listingPhoto.id, photo.id));
+      }
+    });
+
+    it("preserves orphan database record when storage provider throws during sweepOrphanPhotos", async () => {
+      const storage = getStorageService() as InMemoryStorageService;
+      const orphanKey = `listings/test/failing_orphan_${suffix}/display.webp`;
+      const orphanThumbKey = `listings/test/failing_orphan_${suffix}/thumb.webp`;
+      await storage.upload(orphanKey, Buffer.from("failing display"), "image/webp");
+      await storage.upload(orphanThumbKey, Buffer.from("failing thumb"), "image/webp");
+
+      const orphanId = `pht_failing_orphan_${suffix}`;
+      await db.insert(listingPhoto).values({
+        id: orphanId,
+        ownerId: sellerBId,
+        listingId: null,
+        key: orphanKey,
+        thumbKey: orphanThumbKey,
+        width: 1000,
+        height: 750,
+        bytes: 80000,
+        position: 0,
+        createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000), // 30h old
+      });
+
+      const originalDelete = storage.delete;
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      storage.delete = vi.fn().mockRejectedValue(new Error("Storage network socket timeout"));
+
+      try {
+        const sweepResult = await listingService.sweepOrphanPhotos(24);
+        expect(sweepResult.count).toBe(0); // None deleted because storage threw
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("[Storage Error] Failed to sweep orphan photo blobs")
+        );
+
+        // Verify DB row still exists for next sweep retry
+        const [orphanInDb] = await db
+          .select()
+          .from(listingPhoto)
+          .where(eq(listingPhoto.id, orphanId));
+        expect(orphanInDb).toBeDefined();
+      } finally {
+        storage.delete = originalDelete;
+        consoleErrorSpy.mockRestore();
+        await db.delete(listingPhoto).where(eq(listingPhoto.id, orphanId));
+        await storage.delete(orphanKey).catch(() => {});
+        await storage.delete(orphanThumbKey).catch(() => {});
+      }
     });
   });
 });

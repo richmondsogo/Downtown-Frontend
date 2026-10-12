@@ -1,8 +1,8 @@
 /**
  * Client-side image pre-compression utility complying with ADR 0007.
  * - Uses createImageBitmap with imageOrientation: "from-image" to respect EXIF orientation.
- * - Scales down to max edge 1600px.
- * - Encodes to WebP targeting ~300 KB to comfortably fit under Vercel's 4.5 MB request limit.
+ * - Scales down to max edge 1000px to respect display needs and save cellular upload bandwidth.
+ * - Encodes to WebP targeting <= 150 KB to comfortably fit under Vercel's 4.5 MB request limit.
  */
 
 export interface CompressionResult {
@@ -14,8 +14,8 @@ export interface CompressionResult {
 
 export async function compressImage(
   file: File,
-  maxEdge: number = 1600,
-  targetQuality: number = 0.82
+  maxEdge: number = 1000,
+  targetQuality: number = 0.80
 ): Promise<CompressionResult> {
   let sourceWidth = 0;
   let sourceHeight = 0;

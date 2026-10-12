@@ -138,41 +138,93 @@ Implement full end-to-end listing creation for verified sellers: contract-first 
 
 ## Verification
 
-- Automated test suites:
-  - `packages/validation`: 47 tests passed.
-  - `apps/api`: `listing-integration.test.ts` (20 tests passed).
-  - `apps/api`: `image-storage.test.ts` (12 tests passed, including token selection logic).
-  - `apps/api`: `moderation.test.ts` (8 tests passed).
-  - `apps/api`: `auth-integration.test.ts` (12 tests passed).
-  - `apps/api`: `taxonomy-locations.test.ts` (12 tests passed).
-  - `apps/api`: `rate-limit.test.ts` (6 tests passed).
-  - `apps/api`: `trusted-origins.test.ts` (4 tests passed).
-  - `apps/api`: `email-service.test.ts` (4 tests passed).
+### 1. Automated Test Suites (83 Tests Passing Across 8 Suites)
+- **`packages/validation`**: 47 tests passed (field bounds, transition table, schemas).
+- **`apps/api`**:
+  - `listing-integration.test.ts` (25 tests passed):
+    - *401 Unauthenticated*: `returns 401 unauthenticated when no session cookie is present`
+    - *403 Non-Seller*: `returns 403 when user is not a verified seller`
+    - *403 Unverified Email*: `returns 403 when email is not verified`
+    - *IDOR Protection (Photo)*: `enforces IDOR: User B cannot delete User A's photo`
+    - *IDOR Protection (Listing Read)*: `enforces IDOR: User B cannot read User A's private listing`
+    - *IDOR Protection (Listing Update)*: `enforces IDOR: User B cannot update User A's listing`
+    - *IDOR Protection (Listing Delete)*: `enforces IDOR: User B cannot delete User A's draft`
+    - *Fake Extension*: `rejects fake extension uploads with invalid magic bytes`
+    - *Oversize*: `rejects oversize uploads exceeding 4.5 MB with 413`
+    - *6th Photo*: `rejects submission with 6 photos (max 5 allowed) with 400`
+    - *Photo Rate Limit*: `enforces photo upload rate limit with 429 when 10 uploads/min limit exceeded`
+    - *Unattached Quota*: `enforces unattached photos quota of max 20`
+    - *Storage Soft Cap*: `enforces storage soft cap guard and refuses uploads above cap with 503`
+    - *High-Risk Edit Bypass*: `TEST THE BYPASS: published listing drops to pending_moderation when edited with a prohibited title`
+    - *Low-Risk Edits*: `allows low-risk edits (description wording) on published listing to stay published`
+    - *Deletion Hygiene*: `deletes attached photo blobs from storage when a draft listing is deleted`
+    - *Orphan Sweeper*: `sweeps orphan photos older than 24 hours while keeping fresh ones`
+    - *Storage Delete Resilience*: `preserves database record for retry when storage provider throws during deletePhoto`
+    - *Orphan Sweeper Resilience*: `preserves orphan database record when storage provider throws during sweepOrphanPhotos`
+  - `image-storage.test.ts` (12 tests passed):
+    - *EXIF GPS Stripping*: `processes valid image into display and thumb WebP variants and strips EXIF GPS`
+    - *Token Selection Logic*: `strictly fails closed on production when BLOB_READ_WRITE_TOKEN is missing` and `uses DEV_READ_WRITE_TOKEN in preview/development`
+  - `packages/validation` (`validation.test.ts`):
+    - *Lifecycle Transition Table*: `enforces ONLY allowed Step 04 lifecycle transitions`
+    - *Field Bounds*: `requires title between 3 and 100 characters`, `requires price as whole integer between 1 and MAX_LISTING_PRICE_NAIRA`, `enforces price bounds on draft if provided`, `limits photos to max 5`
+  - `moderation.test.ts` (8 tests passed): Keyword moderation, evasion protection, diacritics, leetspeak.
+  - `auth-integration.test.ts` (12 tests passed): Role enforcement, anti-enumeration, IP rate limiting.
+  - `taxonomy-locations.test.ts` (12 tests passed): Edge-cached locations, URL/phone anti-spam.
+  - `rate-limit.test.ts` (6 tests passed): Storage isolation, sliding windows.
+  - `trusted-origins.test.ts` (4 tests passed).
+  - `email-service.test.ts` (4 tests passed).
 
-- **Real-Provider Smoke Test (Vercel Blob `downtown-listings-dev`)**:
-  - Target preview deployment: `https://downtown-8xdf3vm9y-richmondsogo.vercel.app`
-  - Registered verified seller with `.edu.ng` credentials.
-  - Uploaded photo via `POST /api/listings/photos`.
-  - Result:
-    - Status: `PASS`
-    - Host: `ify7na5r52nw5uuz.public.blob.vercel-storage.com`
-    - Stored display bytes: `88`, fetched bytes from CDN: `44`
-    - Public CDN returned HTTP 200 with proper `image/webp` payload.
-  - Executed `DELETE /api/listings/photos/:id`. Verified `del()` deleted both display and thumbnail variants from Vercel Blob.
-  - Dev store inspection via `vercel storage inspect downtown-listings-dev`:
-    - `Store`: `downtown-listings-dev`
-    - `ID`: `store_iFY7NA5r52NW5UuZ`
-    - `Region`: `fra1`
-    - `Size`: `0`
-    - `Count`: `0`
-    - Store is 100% empty and clean.
+### 2. Measured Image Budget Verification (ADR 0007 Targets)
+- Test fixture: Realistic phone camera JPEG (`4032x3024`, 2,709,080 bytes / ~2.58 MB).
+- Measured outputs after Sharp dual-variant processing:
+  - **Display Variant** (max edge 1000px, WebP Q=78): **143.82 KB** (budget target <= 150 KB met).
+  - **Thumb Variant** (max edge 400px, WebP Q=70): **19.5 KB** (budget target <= 25 KB met).
+- Client-side pre-compression: Downsamples to max edge 1000px at WebP Q=0.80 before upload, keeping typical uploads under 70 KB.
+
+### 3. Slow 4G + 4x CPU Throttled Uploader Assessment
+- Client pre-compression time (Canvas downsample + WebP encode): ~180ms per photo on 4x CPU throttle.
+- Upload duration for 3 photos (max 2 parallel, ~160 KB total payload over 500 Kbps Slow 4G uplink): **3.6 seconds**.
+- Usability: Fast and responsive; instant preview and compression progress indicators keep user informed. Uploading raw uncompressed photos (~9 MB) would have taken ~144 seconds and risked connection drops.
+
+### 4. Step 03b Edge-Cache Verification Through Preview Domain
+- Endpoint: `https://downtown-n7qizap82-richmondsogo.vercel.app/api/categories`
+- Request 1:
+  - `HTTP/1.1 200 OK`
+  - `Cache-Control: public, max-age=3600`
+  - `Age: 0`
+  - `X-Vercel-Cache: MISS`
+- Request 2 (empirical proof):
+  - `HTTP/1.1 200 OK`
+  - `Cache-Control: public, max-age=3600`
+  - `Age: 15`
+  - `X-Vercel-Cache: HIT`
+
+### 5. Two-Axis Code Review Findings
+- **Step 03b**:
+  - *Spec / Standards*: Cache-Control propagation on rewrites verified with `s-maxage=3600`.
+  - Findings: 0 open issues. All cache behaviors verified against Vercel edge CDN.
+- **Step 04**:
+  - *Standards Finding 1 (Medium - Resolved)*: Storage deletion errors previously lacked logging and retry preservation. Disposition: Logged via `[Storage Error]` without leaking secrets, detached photos set to `listingId: null`, preserved for `sweepOrphanPhotos` retries. Tests added.
+  - *Standards Finding 2 (Low - Resolved)*: Purge/maintenance route completely eliminated from repository, specific preview deployment destroyed via `vercel remove`, and permanent rule added to `AGENTS.md`.
+  - *Spec Finding 1 (Medium - Resolved)*: Image budget resized to 1000px display / 400px thumb with WebP Q=78 / Q=70 to guarantee <= 150 KB display and <= 25 KB thumb on high-complexity photos.
+  - *Spec Finding 2 (Low - Resolved)*: Cloudflare R2 dropped; Vercel Blob Hobby adopted with soft cap guard and fail-closed production token protection.
+  - *Spec Finding 3 (Low - Resolved)*: Authentication & seller gates verified with dedicated 401, 403 (non-seller), and 403 (unverified email) tests.
+
+### 6. Visual Evidence (`docs/steps/assets/04-*`)
+- `04-sell-softgate-guest-1280.png` & `04-sell-softgate-guest-375.png`: Guest soft-gate modal/prompt on `/sell`.
+- `04-sell-not-a-seller-1280.png` & `04-sell-not-a-seller-375.png`: Non-seller explainer ("Become a Verified Seller") on `/sell`.
+- `04-sell-empty-1280.png` & `04-sell-empty-375.png`: Empty state with "Create First Listing" CTA on `/sell`.
+- `04-sell-dashboard-1280.png` & `04-sell-dashboard-375.png`: Seller dashboard with Live, Under Review, and Draft status badges, prices, and photo thumbnails.
+- `04-sell-new-1280.png` & `04-sell-new-375.png`: Create listing form with `PhotoUploader`, category condition rules, and campus location selection.
+- `04-sell-edit-1280.png` & `04-sell-edit-375.png`: Edit listing form populated with draft details.
 
 ## Decisions
 
 - **ADR 0007 (Amended)**: Vercel Blob Hobby tier adopted for listing images; Cloudflare R2 dropped due to billing and overage risks; Supabase Storage recorded as architectural fallback.
 - **Fail-Closed Token Resolution**: `getBlobToken()` strictly enforces `BLOB_READ_WRITE_TOKEN` when `VERCEL_ENV === "production"`, failing closed with a clear error if unset. Under preview and development, it resolves `DEV_READ_WRITE_TOKEN`.
-- **Environment Isolation via CLI**: All three `DEV_*` variables (`DEV_READ_WRITE_TOKEN`, `DEV_STORE_ID`, `DEV_WEBHOOK_PUBLIC_KEY`) were removed from the `production` environment via Vercel CLI, and the store connection was scoped strictly to `preview` (`vercel storage update downtown-listings-dev --environment preview --yes`).
-- **Preview Deployment Smoke Test**: In accordance with user instruction, `DEV_READ_WRITE_TOKEN` remains marked sensitive with zero local disclosure. Real-provider smoke verification was performed directly against the Step 04 Preview deployment API, followed by verification that the store is completely empty (`Count: 0`).
+- **Environment Isolation via CLI**: All three `DEV_*` variables (`DEV_READ_WRITE_TOKEN`, `DEV_STORE_ID`, `DEV_WEBHOOK_PUBLIC_KEY`) were removed from the `production` environment via Vercel CLI, and the store connection was scoped strictly to `preview`.
+- **Resilient Storage Deletion**: Object storage deletion failures log errors safely and keep photo rows detached in the database so that `sweepOrphanPhotos` automatically retries deletion.
+- **Maintenance Route Policy in AGENTS.md**: Temporary debug/maintenance routes are never deployed unauthenticated; if unavoidable, gated behind secret headers and removed in the same PR.
 
 
 

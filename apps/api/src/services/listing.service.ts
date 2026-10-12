@@ -487,13 +487,28 @@ export class ListingService {
 
     if (attachedPhotos.length > 0) {
       const storage = getStorageService();
+      const successfullyDeletedPhotoIds: string[] = [];
       for (const p of attachedPhotos) {
-        await storage.delete(p.key).catch(() => {});
-        await storage.delete(p.thumbKey).catch(() => {});
+        try {
+          await storage.delete(p.key);
+          await storage.delete(p.thumbKey);
+          successfullyDeletedPhotoIds.push(p.id);
+        } catch (err: any) {
+          console.error(
+            `[Storage Error] Failed to delete photo blobs for ${p.id}: ${err instanceof Error ? err.message : String(err)}`
+          );
+          // Detach from listing so sweepOrphanPhotos will retry cleaning the blobs
+          await db
+            .update(listingPhoto)
+            .set({ listingId: null })
+            .where(eq(listingPhoto.id, p.id));
+        }
       }
-      await db
-        .delete(listingPhoto)
-        .where(eq(listingPhoto.listingId, listingId));
+      if (successfullyDeletedPhotoIds.length > 0) {
+        await db
+          .delete(listingPhoto)
+          .where(inArray(listingPhoto.id, successfullyDeletedPhotoIds));
+      }
     }
 
     await db.delete(listing).where(eq(listing.id, listingId));
@@ -694,10 +709,21 @@ export class ListingService {
     }
 
     const storage = getStorageService();
-    await storage.delete(existing.key).catch(() => {});
-    await storage.delete(existing.thumbKey).catch(() => {});
-
-    await db.delete(listingPhoto).where(eq(listingPhoto.id, photoId));
+    try {
+      await storage.delete(existing.key);
+      await storage.delete(existing.thumbKey);
+      await db.delete(listingPhoto).where(eq(listingPhoto.id, photoId));
+    } catch (err: any) {
+      console.error(
+        `[Storage Error] Failed to delete photo blobs for ${photoId}: ${err instanceof Error ? err.message : String(err)}`
+      );
+      // Ensure photo is detached so sweepOrphanPhotos will retry deleting it later
+      await db
+        .update(listingPhoto)
+        .set({ listingId: null })
+        .where(eq(listingPhoto.id, photoId));
+      throw new ApiError(502, "Storage provider failed to delete image. Photo marked for retry cleanup.");
+    }
   }
 
   /**
@@ -726,15 +752,24 @@ export class ListingService {
     const idsToDelete: string[] = [];
 
     for (const p of orphans) {
-      await storage.delete(p.key).catch(() => {});
-      await storage.delete(p.thumbKey).catch(() => {});
-      bytesFreed += p.bytes;
-      idsToDelete.push(p.id);
+      try {
+        await storage.delete(p.key);
+        await storage.delete(p.thumbKey);
+        bytesFreed += p.bytes;
+        idsToDelete.push(p.id);
+      } catch (err: any) {
+        console.error(
+          `[Storage Error] Failed to sweep orphan photo blobs for ${p.id}: ${err instanceof Error ? err.message : String(err)}`
+        );
+        // Photo stays in database so subsequent sweep runs can retry deleting it
+      }
     }
 
-    await db.delete(listingPhoto).where(inArray(listingPhoto.id, idsToDelete));
+    if (idsToDelete.length > 0) {
+      await db.delete(listingPhoto).where(inArray(listingPhoto.id, idsToDelete));
+    }
 
-    return { count: orphans.length, bytesFreed };
+    return { count: idsToDelete.length, bytesFreed };
   }
 }
 

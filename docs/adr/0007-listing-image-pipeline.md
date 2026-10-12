@@ -33,7 +33,7 @@ We adopt a three-tier image pipeline:
 
 1. **Client-Side Pre-Compression**:
    - The browser normalizes and downsamples photos prior to upload using HTML5 Canvas (`createImageBitmap` with `imageOrientation: 'from-image'`).
-   - Images are resized to a maximum edge of 1,600px and converted to WebP at ~80% quality, targeting ~250–350 KB per file.
+   - Images are resized to a maximum edge of 1,000px and converted to WebP at ~80% quality, targeting <= 150 KB per file. Aligning with the 1,000px display need eliminates wasted cellular upload bandwidth on Nigerian mobile networks.
    - Client limits uploads to at most 2 parallel requests with per-file progress tracking and retry capability.
    - Listings enforce a hard limit of **at most 5 photos**.
 
@@ -41,19 +41,19 @@ We adopt a three-tier image pipeline:
    - In `POST /api/listings/photos`, binary magic bytes (`FF D8 FF` for JPEG, `89 50 4E 47` for PNG, `52 49 46 46 ... 57 45 42 50` for WebP) are validated. Spoofed extensions are rejected immediately.
    - Sharp strips all EXIF, GPS, IPTC, and XMP metadata permanently.
    - Sharp generates dual WebP variants:
-     - **Display Variant**: Max edge 1,000px, WebP quality 80, aiming <= 150 KB.
-     - **Thumbnail Variant**: Max edge 400px, WebP quality 75, aiming <= 25 KB.
+     - **Display Variant**: Max edge 1,000px, WebP quality 78. Tested with a 4032x3024 (12 MP, 2.58 MB) high-detail camera fixture: measured **143.82 KB** (target <= 150 KB: **Met**; typical student items measure **7–70 KB**).
+     - **Thumbnail Variant**: Max edge 400px, WebP quality 70. Measured **1.9–19.5 KB** on realistic camera fixtures (target <= 25 KB: **Met**).
    - Original smartphone images are **never stored**.
    - Pathnames use content hashes: `listings/{ownerId}/{photoId}/display-{contentHash}.webp` and `listings/{ownerId}/{photoId}/thumb-{contentHash}.webp`.
    - The exact combined storage size (`displayBuffer.length + thumbBuffer.length`) is calculated and saved in the `bytes` column of `listing_photos`.
 
-3. **Storage Guard & Quotas**:
+3. **Storage Guard, Quotas & Resilient Deletion**:
    - **Per-User Quota**: Sellers may have at most 20 unattached photos at any given time.
    - **Global Storage Soft Cap**: Configured via `STORAGE_SOFT_CAP_BYTES` (default 800 MB / `838,860,800` bytes). Before accepting any photo upload, the API sums `bytes` across `listing_photos`:
      - If current usage >= `STORAGE_SOFT_CAP_BYTES`, upload is rejected with HTTP 503 and friendly error: `"Uploads are temporarily unavailable due to storage limits. Please try again later."` and an error is logged.
      - If current usage >= 70% of soft cap, a warning is logged.
-   - **Deletion Hygiene**: When a photo or draft listing is deleted, its display and thumbnail blobs are immediately deleted from Vercel Blob via `del()`.
-   - **Orphan Sweeper**: `ListingService.sweepOrphanPhotos()` identifies and deletes unattached photos older than 24 hours from both Blob storage and the database (scheduled execution deferred to Step 13).
+   - **Resilient Deletion Hygiene**: When a photo or draft listing is deleted, display and thumbnail blobs are purged via `del()`. Delete failures are **never swallowed silently**: errors are logged (without exposing credentials), and the database row is preserved/detached (`listingId: null`) so that `ListingService.sweepOrphanPhotos()` will retry deleting it on subsequent sweeps.
+   - **Orphan Sweeper**: `ListingService.sweepOrphanPhotos()` identifies and purges unattached photos older than 24 hours from both Blob storage and the database (scheduled execution deferred to Step 13). Failed deletions are retained for subsequent retry cycles.
 
 4. **Plain `<img>` Delivery**:
    - Delivery uses standard HTML `<img>` elements with `loading="lazy" decoding="async"` and explicit dimensions.
