@@ -2,7 +2,7 @@
 
 **Step Branch**: `step/03b-followups`  
 **Primary Branch**: `master`  
-**Pull Request**: `[Pending]`  
+**Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/8  
 
 ---
 
