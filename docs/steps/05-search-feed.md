@@ -94,3 +94,4 @@ Measured directly in Chrome DevTools MCP on mobile 375x667 viewport:
 - First Commit: `04a4557` (`docs(step-05): initialize step 05 plan and ADR 0008 for search, feed, and ranking`)
 - Implementation Commit: `af8ecc7` (`feat(step-05): implement search, feed, and multi-signal discovery with housekeeping amendments`)
 - Pull Request: https://github.com/richmondsogo/Downtown-Frontend/pull/10
+- Merge Commit: `cab60bf2828174c70bf12584563eb3cb37003b2a`
