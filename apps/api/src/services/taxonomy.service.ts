@@ -53,27 +53,18 @@ export async function getCampuses() {
 }
 
 /**
- * High-performance location autocomplete using pg_trgm and prefix matching.
- *
- * Privacy rules:
- * - Public/unauthenticated callers receive ONLY curated locations (`isCurated = true`).
- * - Authenticated callers receive curated locations PLUS their own custom uncurated submissions (`isCurated = true OR creatorId = currentUserId`).
+ * High-performance public location autocomplete using pg_trgm and prefix matching.
+ * - Searches strictly curated locations (isCurated = true).
  * - Limit 8, minimal payload.
  */
 export async function autocompleteLocations(
-  query: LocationAutocompleteQuery,
-  currentUserId?: string
+  query: LocationAutocompleteQuery
 ) {
   const parsed = LocationAutocompleteQuerySchema.parse(query);
   const q = parsed.q?.trim() || "";
   const campusId = parsed.campusId?.trim();
 
-  // Visibility clause: public sees curated only; authed sees curated + own custom
-  const visibilityCondition = currentUserId
-    ? or(eq(location.isCurated, true), eq(location.creatorId, currentUserId))
-    : eq(location.isCurated, true);
-
-  const conditions = [visibilityCondition];
+  const conditions = [eq(location.isCurated, true)];
   if (campusId) {
     conditions.push(eq(location.campusId, campusId));
   }
@@ -107,14 +98,13 @@ export async function autocompleteLocations(
       .where(and(...conditions))
       .orderBy(
         matchRank,
-        sql`${location.isCurated} DESC`,
         sql`${location.usageCount} DESC`,
         location.name
       )
       .limit(8);
   }
 
-  // If query is empty, return top curated locations (and user's own custom if authed)
+  // If query is empty, return top curated locations
   return await db
     .select({
       id: location.id,
@@ -126,8 +116,34 @@ export async function autocompleteLocations(
     })
     .from(location)
     .where(and(...conditions))
-    .orderBy(sql`${location.isCurated} DESC`, location.name)
+    .orderBy(location.name)
     .limit(8);
+}
+
+/**
+ * Retrieves uncurated custom locations created by a specific authenticated user.
+ */
+export async function getMyLocations(userId: string, campusId?: string) {
+  const conditions = [
+    eq(location.creatorId, userId),
+    eq(location.isCurated, false),
+  ];
+  if (campusId) {
+    conditions.push(eq(location.campusId, campusId));
+  }
+
+  return await db
+    .select({
+      id: location.id,
+      campusId: location.campusId,
+      name: location.name,
+      slug: location.slug,
+      type: location.type,
+      isCurated: location.isCurated,
+    })
+    .from(location)
+    .where(and(...conditions))
+    .orderBy(location.name);
 }
 
 export interface CreateCustomLocationResult {

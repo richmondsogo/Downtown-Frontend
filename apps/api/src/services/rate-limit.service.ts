@@ -1,6 +1,6 @@
 import { db } from "../db/index";
-import { rateLimit } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { appRateLimit } from "../db/schema";
+import { sql } from "drizzle-orm";
 
 export interface RateLimitResult {
   success: boolean;
@@ -9,79 +9,93 @@ export interface RateLimitResult {
 }
 
 /**
- * Atomic sliding window rate limiter backed by the PostgreSQL rate_limit table.
+ * Prefix for all custom application rate limit buckets.
+ * Guarantees namespace isolation from Better Auth or external tables.
+ */
+export const APP_RATE_LIMIT_PREFIX = "app_rl:";
+
+/**
+ * Resolves client IP from standard platform headers with fail-closed fallback.
+ * Checks x-vercel-forwarded-for first (edge proxy), then x-real-ip, then x-forwarded-for.
+ */
+export function getClientIp(headers: Headers): string {
+  const vercelIp = headers.get("x-vercel-forwarded-for");
+  if (vercelIp && vercelIp.trim()) return vercelIp.trim();
+
+  const realIp = headers.get("x-real-ip");
+  if (realIp && realIp.trim()) return realIp.trim();
+
+  const forwardedFor = headers.get("x-forwarded-for");
+  if (forwardedFor && forwardedFor.trim()) {
+    const parts = forwardedFor.split(",").map((p) => p.trim());
+    if (parts[0]) return parts[0];
+  }
+
+  // Fail-closed fallback: unresolvable IP falls into shared constrained bucket
+  return "no-trusted-ip";
+}
+
+/**
+ * Atomic sliding window rate limiter backed strictly by the dedicated app_rate_limit table.
+ * Uses atomic PostgreSQL INSERT ... ON CONFLICT DO UPDATE RETURNING for zero-race concurrency.
  *
- * @param key Unique key for the rate limit bucket (e.g. `location_create:${userId}`)
+ * @param rawKey Unique key for the rate limit bucket (e.g. `location_create:${userId}`)
  * @param limit Max requests allowed within the window
  * @param windowMs Window duration in milliseconds
  */
 export async function checkRateLimit(
-  key: string,
+  rawKey: string,
   limit: number,
   windowMs: number
 ): Promise<RateLimitResult> {
+  const key = rawKey.startsWith(APP_RATE_LIMIT_PREFIX)
+    ? rawKey
+    : `${APP_RATE_LIMIT_PREFIX}${rawKey}`;
+
   const now = Date.now();
+  const newId = "rl_" + Math.random().toString(36).substring(2, 10);
 
-  const existing = await db
-    .select()
-    .from(rateLimit)
-    .where(eq(rateLimit.key, key))
-    .limit(1);
-
-  if (existing.length === 0) {
-    await db.insert(rateLimit).values({
-      id: "rl_" + Math.random().toString(36).substring(2, 10),
+  const res = await db
+    .insert(appRateLimit)
+    .values({
+      id: newId,
       key,
       count: 1,
       lastRequest: now,
+    })
+    .onConflictDoUpdate({
+      target: appRateLimit.key,
+      set: {
+        count: sql<number>`CASE 
+          WHEN (${now} - ${appRateLimit.lastRequest}) > ${windowMs} THEN 1 
+          ELSE ${appRateLimit.count} + 1 
+        END`,
+        lastRequest: sql<number>`CASE 
+          WHEN (${now} - ${appRateLimit.lastRequest}) > ${windowMs} THEN ${now} 
+          ELSE ${appRateLimit.lastRequest} 
+        END`,
+      },
+    })
+    .returning({
+      count: appRateLimit.count,
+      lastRequest: appRateLimit.lastRequest,
     });
-    return {
-      success: true,
-      remaining: limit - 1,
-      resetAt: now + windowMs,
-    };
-  }
 
-  const record = existing[0];
-  const elapsed = now - record.lastRequest;
+  const record = res[0];
+  const count = Number(record.count);
+  const lastRequest = Number(record.lastRequest);
 
-  if (elapsed > windowMs) {
-    // Window expired, reset bucket
-    await db
-      .update(rateLimit)
-      .set({
-        count: 1,
-        lastRequest: now,
-      })
-      .where(eq(rateLimit.key, key));
-
-    return {
-      success: true,
-      remaining: limit - 1,
-      resetAt: now + windowMs,
-    };
-  }
-
-  if (record.count >= limit) {
-    // Exceeded
+  if (count > limit) {
     return {
       success: false,
       remaining: 0,
-      resetAt: record.lastRequest + windowMs,
+      resetAt: lastRequest + windowMs,
     };
   }
 
-  // Increment
-  await db
-    .update(rateLimit)
-    .set({
-      count: record.count + 1,
-    })
-    .where(eq(rateLimit.key, key));
-
   return {
     success: true,
-    remaining: limit - (record.count + 1),
-    resetAt: record.lastRequest + windowMs,
+    remaining: Math.max(0, limit - count),
+    resetAt: lastRequest + windowMs,
   };
 }

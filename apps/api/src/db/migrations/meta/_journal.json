@@ -15,6 +15,13 @@
       "when": 1791751106208,
       "tag": "0001_groovy_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791793128246,
+      "tag": "0002_redundant_roughhouse",
+      "breakpoints": true
     }
   ]
 }

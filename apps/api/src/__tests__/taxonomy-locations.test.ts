@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { GET as getCategoriesHandler } from "../app/api/categories/route";
 import { GET as getCampusesHandler } from "../app/api/campuses/route";
 import { GET as autocompleteHandler } from "../app/api/locations/autocomplete/route";
+import { GET as getMyLocationsHandler } from "../app/api/locations/mine/route";
 import { POST as createLocationHandler } from "../app/api/locations/route";
 import { seedTaxonomyAndLocations } from "../db/seeds/taxonomy-locations";
 import { pool, db } from "../db/index";
@@ -155,7 +156,7 @@ describe("Taxonomy & Locations Integration Suite", () => {
 
       const cacheControl = res.headers.get("Cache-Control");
       expect(cacheControl).toContain("public");
-      expect(cacheControl).toContain("s-maxage=60");
+      expect(cacheControl).toContain("s-maxage=300");
 
       const data = await res.json();
       expect(Array.isArray(data)).toBe(true);
@@ -274,26 +275,40 @@ describe("Taxonomy & Locations Integration Suite", () => {
       expect(data.location.isCurated).toBe(false);
       expect(data.location.type).toBe("custom");
 
-      // Verify privacy rule: creator CAN see their custom location
-      const authedAutocompleteReq = new NextRequest(
-        `http://localhost:3000/api/locations/autocomplete?q=${encodeURIComponent(customName)}`,
+      // Verify /api/locations/mine: creator CAN see their custom location
+      const myLocationsReq = new NextRequest(
+        `http://localhost:3000/api/locations/mine?campusId=${osogboCampusId}`,
         {
           headers: {
             Cookie: testSessionCookie,
           },
         }
       );
-      const authedRes = await autocompleteHandler(authedAutocompleteReq);
-      expect(authedRes.status).toBe(200);
-      const authedData = await authedRes.json();
-      expect(authedData.some((l: any) => l.name === customName)).toBe(true);
+      const myLocationsRes = await getMyLocationsHandler(myLocationsReq);
+      expect(myLocationsRes.status).toBe(200);
+      expect(myLocationsRes.headers.get("Cache-Control")).toContain("no-store");
+      const myLocationsData = await myLocationsRes.json();
+      expect(myLocationsData.some((l: any) => l.name === customName)).toBe(true);
 
-      // Verify privacy rule: unauthenticated public caller CANNOT see this uncurated location
+      // Verify /api/locations/mine: unauthenticated caller gets 401
+      const unauthReq = new NextRequest(
+        `http://localhost:3000/api/locations/mine?campusId=${osogboCampusId}`
+      );
+      const unauthRes = await getMyLocationsHandler(unauthReq);
+      expect(unauthRes.status).toBe(401);
+
+      // Verify public autocomplete: purely public, does NOT include uncurated custom location
       const publicAutocompleteReq = new NextRequest(
-        `http://localhost:3000/api/locations/autocomplete?q=${encodeURIComponent(customName)}`
+        `http://localhost:3000/api/locations/autocomplete?q=${encodeURIComponent(customName)}`,
+        {
+          headers: {
+            "x-vercel-forwarded-for": `192.0.2.${Math.floor(Math.random() * 200)}`,
+          },
+        }
       );
       const publicRes = await autocompleteHandler(publicAutocompleteReq);
       expect(publicRes.status).toBe(200);
+      expect(publicRes.headers.get("Cache-Control")).toContain("public");
       const publicData = await publicRes.json();
       expect(publicData.some((l: any) => l.name === customName)).toBe(false);
     });
@@ -358,5 +373,47 @@ describe("Taxonomy & Locations Integration Suite", () => {
       }
       expect(rateLimited).toBe(true);
     });
+
+    it(
+      "rate limits public GET /locations/autocomplete per client IP with fail-closed bucket isolation",
+      async () => {
+        const throttledIp = `203.0.113.${Math.floor(Math.random() * 200) + 10}`;
+
+        // Fire 65 requests concurrently to test threshold and concurrency
+        const requests = Array.from({ length: 65 }, () =>
+          autocompleteHandler(
+            new NextRequest(
+              `http://localhost:3000/api/locations/autocomplete?q=Osogbo&campusId=${osogboCampusId}`,
+              {
+                headers: {
+                  "x-vercel-forwarded-for": throttledIp,
+                },
+              }
+            )
+          )
+        );
+
+        const responses = await Promise.all(requests);
+        const rateLimitedResponses = responses.filter((r) => r.status === 429);
+        expect(rateLimitedResponses.length).toBeGreaterThanOrEqual(1);
+
+        const first429 = rateLimitedResponses[0];
+        expect(first429.headers.get("Retry-After")).toBeDefined();
+
+        // Different IP should still succeed with 200 OK (per-IP isolation)
+        const freshIp = `203.0.113.${Math.floor(Math.random() * 200) + 10}_fresh`;
+        const freshReq = new NextRequest(
+          `http://localhost:3000/api/locations/autocomplete?q=Osogbo&campusId=${osogboCampusId}`,
+          {
+            headers: {
+              "x-vercel-forwarded-for": freshIp,
+            },
+          }
+        );
+        const freshRes = await autocompleteHandler(freshReq);
+        expect(freshRes.status).toBe(200);
+      },
+      15000
+    );
   });
 });

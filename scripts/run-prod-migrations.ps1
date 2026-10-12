@@ -13,11 +13,11 @@
   $env:CONFIRM_PROD_HOST.
 
 .PARAMETER Action
-  Action to execute: 'migrate' (default) or 'list-tables'.
+  Action to execute: 'migrate' (default), 'seed-taxonomy', or 'list-tables'.
 
 .EXAMPLE
   $env:CONFIRM_PROD_HOST = "ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech"
-  .\scripts\run-prod-migrations.ps1
+  .\scripts\run-prod-migrations.ps1 -Action seed-taxonomy
 #>
 
 [CmdletBinding()]
@@ -26,7 +26,7 @@ param(
   [string]$ConfirmHost = "",
 
   [Parameter(Mandatory = $false)]
-  [ValidateSet("migrate", "list-tables")]
+  [ValidateSet("migrate", "list-tables", "seed-taxonomy")]
   [string]$Action = "migrate"
 )
 

@@ -3,6 +3,7 @@ import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { migrate } from "drizzle-orm/neon-serverless/migrator";
 import ws from "ws";
+import { seedTaxonomyAndLocations } from "./seeds/taxonomy-locations";
 
 neonConfig.webSocketConstructor = ws;
 
@@ -30,10 +31,14 @@ async function main() {
       const migrationsFolder = path.resolve(__dirname, "./migrations");
       await migrate(db, { migrationsFolder });
       console.log("Migrations applied successfully.");
+    } else if (action === "seed-taxonomy") {
+      console.log("Seeding taxonomy & reference data to target database (idempotent)...");
+      await seedTaxonomyAndLocations(db);
+      console.log("Taxonomy reference data seeded successfully.");
     } else if (action === "list-tables") {
       console.log("Listing public tables in target database...");
     } else {
-      console.error(`Unknown action: ${action}. Expected 'migrate' or 'list-tables'.`);
+      console.error(`Unknown action: ${action}. Expected 'migrate', 'seed-taxonomy', or 'list-tables'.`);
       process.exit(1);
     }
 
@@ -54,6 +59,7 @@ async function main() {
     process.exit(1);
   } finally {
     await pool.end();
+    process.exit(0);
   }
 }
 

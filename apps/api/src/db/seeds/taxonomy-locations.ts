@@ -245,11 +245,12 @@ export async function loadStudentAreasFromCsv(): Promise<Array<{
 /**
  * Main idempotent reference data seed function.
  */
-export async function seedTaxonomyAndLocations() {
+export async function seedTaxonomyAndLocations(customDb?: any) {
+  const targetDb = customDb || db;
   console.log("=== Seeding Taxonomy & Locations Reference Data ===");
 
   // 1. Seed University (UNIOSUN)
-  await db
+  await targetDb
     .insert(university)
     .values(UNIOSUN_UNIVERSITY)
     .onConflictDoNothing({ target: university.slug });
@@ -257,7 +258,7 @@ export async function seedTaxonomyAndLocations() {
 
   // 2. Seed Campuses
   for (const c of UNIOSUN_CAMPUSES) {
-    await db
+    await targetDb
       .insert(campus)
       .values(c)
       .onConflictDoNothing({ target: campus.slug });
@@ -266,7 +267,7 @@ export async function seedTaxonomyAndLocations() {
 
   // 3. Seed Campus Locations (one per campus, curated)
   for (const loc of CAMPUS_LOCATIONS) {
-    await db
+    await targetDb
       .insert(location)
       .values({
         id: loc.id,
@@ -283,7 +284,7 @@ export async function seedTaxonomyAndLocations() {
 
   // 4. Seed Categories (GOAL.md 5.3)
   for (const cat of V1_CATEGORIES) {
-    await db
+    await targetDb
       .insert(category)
       .values({
         id: cat.id,
@@ -301,14 +302,14 @@ export async function seedTaxonomyAndLocations() {
   // 5. Seed Student Areas from CSV
   const studentAreas = await loadStudentAreasFromCsv();
   if (studentAreas.length > 0) {
-    const campusRows = await db.select().from(campus);
-    const campusMap = new Map(campusRows.map((r) => [r.slug, r.id]));
+    const campusRows = await targetDb.select().from(campus);
+    const campusMap = new Map(campusRows.map((r: any) => [r.slug, r.id]));
 
     for (const sa of studentAreas) {
       const cId = campusMap.get(sa.campusSlug);
       if (cId) {
         const locId = `loc_sa_${sa.campusSlug}_${sa.slug}`;
-        await db
+        await targetDb
           .insert(location)
           .values({
             id: locId,

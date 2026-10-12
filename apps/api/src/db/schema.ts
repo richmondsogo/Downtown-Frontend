@@ -68,6 +68,20 @@ export const rateLimit = pgTable("rate_limit", {
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
 
+export const appRateLimit = pgTable(
+  "app_rate_limit",
+  {
+    id: text("id").primaryKey(),
+    key: text("key").notNull().unique(),
+    count: integer("count").notNull().default(1),
+    lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("app_rate_limit_key_idx").on(table.key),
+  ]
+);
+
 export const university = pgTable("university", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

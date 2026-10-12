@@ -1,1 +1,21 @@
 campus_slug,name,slug,description
+osogbo,Small Gate,small-gate,"Residential area by UNIOSUN's Small Gate, an access point students use to enter the Osogbo campus. Public map listings locate the gate at QH7X+PPQ, Osogbo."
+osogbo,Transformer,transformer,"Area around Transformer Junction on UNIOSUN Road in Oke Baale, near Marigolds Hostel. The junction is a useful reference point for nearby student housing."
+osogbo,Second Gate,second-gate,Student-residential area around UNIOSUN's Second Gate in Oke Baale. Public accommodation listings use Second Gate Road and nearby streets as location references.
+osogbo,Jafaria,jafaria,"Area associated with Jafaria Mosque, around the Shogbo/Second Gate side. The mosque is a local landmark for identifying this part of the student-residential area."
+osogbo,URP,urp,Student-hostel cluster around UNIOSUN's Department of Urban and Regional Planning and the Faculty of Environmental Sciences building. The newer FOCIT building and JUPEB buildings are also nearby landmarks.
+osogbo,Cele,cele,"A local student-area label that may refer to a Celestial Church landmark. Hostel listings place student accommodation behind Celestial Church of Christ in the OSBC area, but the match with this label should be confirmed locally."
+osogbo,Table Mannas,table-mannas,"Area identified by the Table Mannas landmark in Binukonu Community, within the UNIOSUN student area. Local listings place it behind Diamond Hostel, off Sasa Market on Oke Baale Lane, beside Omo Oke Hostel."
+osogbo,OSBC,osbc,Student-hostel area associated with OSBC Road in Oke Baale and the Sasa area. Local hostel listings reference residences behind Celestial Church of Christ and behind CCC Oke Ibukun Parish in the OSBC area.
+osogbo,Sasa,sasa,Student-residential area around Sasa and OSBC Road in Oke Baale. Local listings place it near Sasa Market and within the wider UNIOSUN off-campus student-housing cluster.
+osogbo,Coker,coker,"A locally used student-residential area name from the UNIOSUN Osogbo list. Public sources did not establish an unambiguous street boundary or landmark, so add a student-verified pin before relying on it for directions."
+osogbo,Akede(after urp),akede-after-urp,"A directional sub-area label for Akede, specifically the part students distinguish as being after URP. Keep the qualifier to distinguish it from Akede generally, and add a confirmed hostel or street pin for navigation."
+osogbo,Suzzy,suzzy,"Area around the Suzzy International Hotel landmark on University Road, Oke Baale. Listings place the hotel on University Road; confirm the exact extent of the student area from a nearby hostel or street."
+osogbo,Shogbo,shogbo,Student-residential area beyond UNIOSUN's Second Gate. Jafaria Mosque is a landmark in this general area; its exact relationship to the Shogbo boundary can be confirmed with current students.
+osogbo,Ogidan,ogidan,"Area identified by Ogidan Grammar School on School Road, off Sasa Market. This is a locally supplied landmark description; the exact residential boundary is informal."
+osogbo,Theology,theology,"Area identified by Theology school, farther down from Ogidan Grammar School on School Road off Sasa Market. The exact boundary is informal and can be refined with a hostel or street reference."
+osogbo,Lick Sensation,lick-sensation,"Area around Lick Sensation, a mapped local landmark in Osogbo. A Glo campus-site listing places an off-campus student-housing plot opposite it on Ogindan Street, Oke Baale."
+osogbo,Costain,costain,"Costain is also used as a broader Osogbo locality name. Osun State Government material references Oloruntedo Community (Costain) and the Costain-Osogbo East Bypass, so confirm that this is the student area meant and not a wider locality."
+osogbo,Casmob,casmob,"A locally used area name from the student-residential list. Online searches did not establish a reliable location for 'Casmob'; there is a separate public reference to 'Kasmo area' in Osogbo, but it is not confirmed to be the same place."
+osogbo,Highfliers,highfliers,"Student-housing area around Highfliers Hostel in the OSBC area. A hostel directory places Cross-link Hostel behind Highfliers, behind CCC Oke Ibukun Parish, in the university area of Osogbo."
+

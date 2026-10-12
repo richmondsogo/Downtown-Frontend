@@ -6,9 +6,10 @@ This checklist defines mandatory operational, security, legal, and QA checkpoint
 
 ## 1. Domain & Communications Infrastructure
 
-- [ ] **Custom Domain Configuration**:
+- [ ] **Custom Domain & Unified DNS Configuration**:
   - Configure production domain DNS records (Apex and `www` CNAMEs to Vercel).
   - Verify SSL certificate issuance and HTTPS termination on Vercel Edge.
+  - Align unified domain strategy: use single apex domain for both transactional email routing (`mail.<domain>`) and Cloudflare R2 public asset serving (`cdn.<domain>` or `photos.<domain>`).
 - [ ] **Resend Transactional Email Setup**:
   - Provision and verify sending domain DNS records (SPF, DKIM, DMARC) in Resend.
   - Set `RESEND_API_KEY` in Vercel production environment for `downtown-api`.
@@ -16,6 +17,14 @@ This checklist defines mandatory operational, security, legal, and QA checkpoint
 - [ ] **Remove `ProductionEmailService` Stub**:
   - Verify that `getEmailService()` in `apps/api/src/services/email.service.ts` routes all outbound emails to `ResendEmailService`.
   - Confirm real OTP verification and password reset emails deliver successfully to real Gmail/Yahoo test accounts.
+- [ ] **Cloudflare R2 Production Bucket & Token**:
+  - Provision production R2 bucket (e.g. `downtown-photos-prod`).
+  - Create scoped Cloudflare API token with Object Read/Write access restricted strictly to the production bucket.
+  - Configure custom public CDN domain on the R2 bucket.
+  - Inject `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, and `R2_PUBLIC_BASE_URL` into Vercel production environment.
+- [x] **Student Areas Reference Data (`docs/data/student-areas.csv`)**:
+  - Curated UNIOSUN student residential areas populated across Osogbo campus.
+  - Seeded into production PostgreSQL reference data via `scripts/run-prod-migrations.ps1 -Action seed-taxonomy`.
 
 ---
 
