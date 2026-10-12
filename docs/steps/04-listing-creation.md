@@ -2,7 +2,7 @@
 
 **Step Branch**: `step/04-listing-creation`  
 **Primary Branch**: `master`  
-**Pull Request**: `[Pending]`  
+**Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/9  
 
 ---
 
