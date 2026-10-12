@@ -3,6 +3,9 @@
 **Step Branch**: `step/04-listing-creation`  
 **Primary Branch**: `master`  
 **Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/9  
+**First Commit**: `60fefc54bce8111559868be8c46fbe40d39352e8`  
+**Last Commit**: `f8138d3868770b5be7bcab1ba4b26715f5a892b1`  
+**Merge Commit**: `fb492ba8baf8ea1e3fc1a486e1423e1dd37c0fe7`  
 
 ---
 
