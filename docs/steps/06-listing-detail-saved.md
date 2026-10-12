@@ -115,7 +115,72 @@ Deliver the complete, responsive public listing detail experience and persistent
 
 ## Commit Provenance
 
-- First Commit: `TBD`
-- Implementation Commit: `TBD`
-- Pull Request: `TBD`
-- Merge Commit: `TBD`
+- First Commit: `934afdc` (initialize step 06 plan)
+- Implementation Commit: `5e3b753` (public listing detail page and saved listings system)
+- Pull Request: [PR #11](https://github.com/richmondsogo/Downtown-Frontend/pull/11)
+- Merge Commit: `414408b686b3e44de434255ed26beb27b6dde32e`
+
+---
+
+## Implementation
+
+1. **Schema & Database Migrations**:
+   - Added `view_count` integer column defaulting to 0 on `listings` table.
+   - Defined `saved_listings` table with composite primary key `(user_id, listing_id)`, foreign key cascades to `user` and `listings`, and indexing on `(user_id, created_at)`.
+   - Generated idempotent migration `apps/api/src/db/migrations/0006_yielding_sunfire.sql` and applied cleanly to both development and production Neon PostgreSQL instances.
+2. **Contracts & Validation**:
+   - Added `PublicListingPhoto`, `SellerTrustProfile`, `PublicListingDetail`, `SavedListingItem`, `ToggleSaveResponse` to `packages/types/src/index.ts`.
+   - Added `formatMemberSince(date)` and `formatTimeAgo(date)` to `packages/utils/src/index.ts` with comprehensive unit tests (17/17 passed).
+3. **Backend Service & Routing**:
+   - `apps/api/src/services/listing.service.ts`: Implemented `getPublicListingDetail(listingId, currentUserId)` ensuring strict privacy projection (zero seller email, phone, matric number, or internal user ID) and draft IDOR gating.
+   - `apps/api/src/services/listing.service.ts`: Implemented `incrementViewCount(listingId, clientIp)` with atomic increment and IP sliding window rate limiting via `app_rate_limit`.
+   - `apps/api/src/services/saved.service.ts`: Implemented `SavedService` with `toggleSave(userId, listingId)`, `getSavedListings(userId)` (preserving sold status), and `isListingSaved(userId, listingId)`.
+   - `apps/api/src/app/api/listings/[id]/route.ts`: Updated `GET` endpoint returning `PublicListingDetail` with `public, s-maxage=60, stale-while-revalidate=120` edge cache headers for unauthenticated visitors, and `private, no-cache` when authenticated.
+   - `apps/api/src/app/api/listings/[id]/view/route.ts`: Implemented `POST` atomic view counting endpoint.
+   - `apps/api/src/app/api/listings/[id]/save/route.ts`: Implemented `POST` authenticated save toggle endpoint.
+   - `apps/api/src/app/api/listings/saved/route.ts`: Implemented `GET` authenticated user saved collection endpoint.
+4. **Frontend Architecture & Components**:
+   - `apps/web/src/components/photo-carousel.tsx`: Built accessible image carousel supporting touch swipe gestures, thumbnail strip, full-res modal lightbox, and explicit `aspect-[4/3]` dimensions (0 CLS).
+   - `apps/web/src/components/seller-trust-card.tsx`: Built seller trust badge showcasing seller name, verified student status, campus affiliation, member join date, and active listing count.
+   - `apps/web/src/components/campus-safety-notice.tsx`: Built safety banner with UNIOSUN campus commerce guidelines (meet in daylight in busy campus public areas, inspect before pay, zero advance transfers).
+   - `apps/web/src/components/save-button.tsx`: Built optimistic toggle button with unauthenticated `AuthGateModal` trigger.
+   - `apps/web/src/app/listings/[id]/page.tsx`: Built public listing detail page with dynamic SSR `generateMetadata` for OpenGraph and responsive 2-column layout.
+   - `apps/web/src/app/saved/page.tsx`: Built saved items page with sold items greyed out and empty state.
+   - `apps/web/src/components/header.tsx`: Added quick-access saved items heart badge with link to `/saved`.
+
+---
+
+## Discoveries
+
+1. **Edge Cache Headers vs. Personalization**:
+   - When serving public listing details, edge caching headers (`public, s-maxage=60, stale-while-revalidate=120`) must only be sent when the request is unauthenticated. When a valid user session is detected, `private, no-cache, no-store, must-revalidate` is returned so that the computed `isSaved` boolean is never cached in shared intermediate caches.
+2. **Atomic View Count Deduplication**:
+   - Utilizing the existing `app_rate_limit` sliding window table (`view:${listingId}:${clientIp}`, 1 request / 60 seconds) prevents artificial view count inflation from browser refreshes while maintaining zero external dependencies (Redis-free).
+
+---
+
+## Decisions
+
+1. **Composite Primary Key for Saved Listings**:
+   - Chosen `(user_id, listing_id)` composite primary key to guarantee at the database constraint level that a user cannot duplicate saves for the same listing.
+2. **Preserving Sold Items in Saved Collection**:
+   - Unlike public search feed where sold items are ranked last or omitted without search keywords, saved items retain visibility with an explicit `SOLD` badge and opacity treatment so students can track transaction outcomes without confusing missing cards.
+
+---
+
+## Verification
+
+1. **Automated Test Suite**:
+   - `pnpm test`: 12/12 test files passed (118 tests total).
+   - `apps/api/src/__tests__/listing-detail.test.ts`: 9/9 tests passed (privacy boundary, draft IDOR protection, seller draft access, atomic view count increment & IP rate limiting, 401 save refusal, authenticated toggle, and saved list retrieval).
+   - `packages/utils/src/__tests__/utils.test.ts`: 17/17 tests passed (date and time formatting).
+2. **Repository Verification**:
+   - `scripts/verify.ps1`: 12/12 checks passed (Git state, manifests, toolchain, typechecks, automated tests, monorepo build).
+3. **Browser Verification (Chrome DevTools MCP)**:
+   - Emulated conditions: Slow 4G + 4x CPU slowdown.
+   - Mobile Viewport (375x667): Verified responsive layout, carousel, seller trust card, safety banner, and disabled Contact Seller CTA.
+   - Desktop Viewport (1280x800): Verified 2-column layout, thumbnail strip, breadcrumbs, and 0 CLS.
+   - Interactive: Verified Save button optimistic state and unauthenticated / saved page rendering.
+4. **Production Database Migration**:
+   - Ran `scripts/run-prod-migrations.ps1 -Action migrate -ConfirmHost 'ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech'`
+   - Verified `saved_listings` table created and live on production Neon database.
