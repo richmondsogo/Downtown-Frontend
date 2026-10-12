@@ -8,15 +8,26 @@ export interface SeedGuardOptions {
   nodeEnv?: string;
   allowSeed?: string;
   databaseUrl?: string;
+  allowedDevHosts?: string[];
 }
 
-export const ALLOWED_DEV_HOSTS = [
+export const DEFAULT_ALLOWED_DEV_HOSTS = [
   "ep-shiny-credit-baedn5p1-pooler.c-8.eu-central-1.aws.neon.tech",
   "localhost",
   "127.0.0.1",
 ];
 
+export const ALLOWED_DEV_HOSTS = DEFAULT_ALLOWED_DEV_HOSTS;
+
 export const PRODUCTION_HOST = "ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech";
+
+export function getAllowedDevHosts(): string[] {
+  const hosts = [...DEFAULT_ALLOWED_DEV_HOSTS];
+  if (process.env.DEV_DB_HOST && process.env.DEV_DB_HOST.trim()) {
+    hosts.push(process.env.DEV_DB_HOST.trim());
+  }
+  return hosts;
+}
 
 export function assertSafeSeedEnvironment(options?: SeedGuardOptions): { host: string } {
   const nodeEnv = options?.nodeEnv ?? process.env.NODE_ENV ?? "development";
@@ -47,10 +58,13 @@ export function assertSafeSeedEnvironment(options?: SeedGuardOptions): { host: s
     throw new Error(`REFUSED: Database host "${host}" matches production database.`);
   }
 
-  const isAllowed = ALLOWED_DEV_HOSTS.some((allowed) => host.includes(allowed));
+  const allowedHosts = options?.allowedDevHosts ?? getAllowedDevHosts();
+  const isAllowed = allowedHosts.includes(host);
   if (!isAllowed) {
     throw new Error(`REFUSED: Database host "${host}" is not on the dev allowlist.`);
   }
 
   return { host };
 }
+
+export const guardSeedDatabase = assertSafeSeedEnvironment;

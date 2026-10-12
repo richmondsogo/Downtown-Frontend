@@ -343,7 +343,7 @@ export function LocationSelector({
             {selectedCampusId && results.length > 0 && results.every((r) => r.type === "campus") && !searchQuery && (
               <div className="px-2.5 py-1.5 mx-1 mb-1 rounded bg-muted/70 border border-border text-[11px] text-muted-foreground flex items-center gap-1.5">
                 <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                <span>Campus-level location available. Specific hostel sub-areas coming soon.</span>
+                <span>No sub-areas listed for this campus yet.</span>
               </div>
             )}
 

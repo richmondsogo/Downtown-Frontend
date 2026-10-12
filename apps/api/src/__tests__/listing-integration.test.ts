@@ -49,7 +49,7 @@ describe("Listing Creation & Photo Pipeline Integration Suite", () => {
       headers: {
         "Content-Type": "application/json",
         Origin: "http://localhost:3000",
-        "x-forwarded-for": ip,
+        "x-vercel-forwarded-for": ip,
       },
       body: JSON.stringify({
         name: `Test ${email}`,
@@ -86,7 +86,7 @@ describe("Listing Creation & Photo Pipeline Integration Suite", () => {
       headers: {
         "Content-Type": "application/json",
         Origin: "http://localhost:3000",
-        "x-forwarded-for": ip,
+        "x-vercel-forwarded-for": ip,
       },
       body: JSON.stringify({
         email,

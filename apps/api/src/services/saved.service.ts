@@ -16,6 +16,36 @@ import type { SavedListingItem, ListingStatus } from "@downtown/types";
 
 export class SavedService {
   /**
+   * Sets the saved status of a listing idempotently:
+   * - If saved === true: inserts if not present (onConflictDoNothing), returns { saved: true }.
+   * - If saved === false: deletes if present, returns { saved: false }.
+   */
+  async setSavedStatus(userId: string, listingId: string, saved: boolean): Promise<{ saved: boolean }> {
+    const [existing] = await db
+      .select({ id: listing.id })
+      .from(listing)
+      .where(eq(listing.id, listingId))
+      .limit(1);
+
+    if (!existing) {
+      throw new NotFoundError("Listing not found.");
+    }
+
+    if (saved) {
+      await db
+        .insert(savedListing)
+        .values({ userId, listingId })
+        .onConflictDoNothing();
+      return { saved: true };
+    } else {
+      await db
+        .delete(savedListing)
+        .where(and(eq(savedListing.userId, userId), eq(savedListing.listingId, listingId)));
+      return { saved: false };
+    }
+  }
+
+  /**
    * Toggles the saved status of a listing for an authenticated user:
    * - If already saved, removes the save and returns { saved: false }.
    * - If not saved, inserts a new saved_listings row and returns { saved: true }.
@@ -43,10 +73,13 @@ export class SavedService {
         .where(and(eq(savedListing.userId, userId), eq(savedListing.listingId, listingId)));
       return { saved: false };
     } else {
-      await db.insert(savedListing).values({
-        userId,
-        listingId,
-      });
+      await db
+        .insert(savedListing)
+        .values({
+          userId,
+          listingId,
+        })
+        .onConflictDoNothing();
       return { saved: true };
     }
   }

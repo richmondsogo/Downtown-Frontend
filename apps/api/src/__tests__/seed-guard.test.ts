@@ -79,6 +79,18 @@ describe("Seed Guard Environment Safety Suite", () => {
     ).toThrow(/REFUSED: Database host .* is not on the dev allowlist/);
   });
 
+  it("REFUSES execution against an unknown Neon host not in the allowlist", () => {
+    const unknownNeonUrl =
+      "postgresql://user:pass@ep-unknown-branch-baedn5p1-pooler.c-8.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    expect(() =>
+      assertSafeSeedEnvironment({
+        nodeEnv: "development",
+        allowSeed: "1",
+        databaseUrl: unknownNeonUrl,
+      })
+    ).toThrow(/REFUSED: Database host .* is not on the dev allowlist/);
+  });
+
   it("REFUSES execution when DATABASE_URL is missing or invalid", () => {
     expect(() =>
       assertSafeSeedEnvironment({

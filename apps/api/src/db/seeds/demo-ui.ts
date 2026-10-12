@@ -12,7 +12,7 @@ async function createOrUpdateUser(email: string, sellerStatus: "verified" | "not
       headers: {
         "Content-Type": "application/json",
         Origin: "http://localhost:3000",
-        "x-forwarded-for": "127.0.0.1",
+        "x-vercel-forwarded-for": "127.0.0.1",
       },
       body: JSON.stringify({
         name: email.startsWith("nonseller") ? "Tunde Student" : "Richmond Seller",

@@ -19,8 +19,11 @@ describe("Taxonomy & Locations Integration Suite", () => {
   let osogboCampusId: string;
 
   beforeAll(async () => {
-    // 1. Ensure reference seeds are present
-    await seedTaxonomyAndLocations();
+    // 1. Ensure reference seeds are present if not already in DB
+    const [existingLoc] = await db.select({ id: location.id }).from(location).limit(1);
+    if (!existingLoc) {
+      await seedTaxonomyAndLocations();
+    }
 
     // 2. Fetch Osogbo campus id
     const campusesRes = await getCampusesHandler();
@@ -34,7 +37,7 @@ describe("Taxonomy & Locations Integration Suite", () => {
       headers: {
         "Content-Type": "application/json",
         Origin: "http://localhost:3000",
-        "x-forwarded-for": `10.88.77.${Math.floor(Math.random() * 200) + 1}`,
+        "x-vercel-forwarded-for": `10.88.77.${Math.floor(Math.random() * 200) + 1}`,
       },
       body: JSON.stringify({
         name: "Location Creator",

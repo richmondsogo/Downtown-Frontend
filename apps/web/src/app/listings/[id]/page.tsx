@@ -242,7 +242,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
                   <span className="text-xs">
                     {listing.location.name && listing.location.name !== listing.location.campusName
                       ? listing.location.name
-                      : "Campus-wide pickup"}
+                      : "No sub-areas listed for this campus yet"}
                   </span>
                 </div>
               </div>

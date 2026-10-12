@@ -15,20 +15,14 @@ export interface RateLimitResult {
 export const APP_RATE_LIMIT_PREFIX = "app_rl:";
 
 /**
- * Resolves client IP from standard platform headers with fail-closed fallback.
- * Checks x-vercel-forwarded-for first (edge proxy), then x-real-ip, then x-forwarded-for.
+ * Resolves client IP strictly from platform header x-vercel-forwarded-for with fail-closed fallback.
+ * Prohibits cf-connecting-ip, x-real-ip, and client-set x-forwarded-for headers.
  */
 export function getClientIp(headers: Headers): string {
   const vercelIp = headers.get("x-vercel-forwarded-for");
-  if (vercelIp && vercelIp.trim()) return vercelIp.trim();
-
-  const realIp = headers.get("x-real-ip");
-  if (realIp && realIp.trim()) return realIp.trim();
-
-  const forwardedFor = headers.get("x-forwarded-for");
-  if (forwardedFor && forwardedFor.trim()) {
-    const parts = forwardedFor.split(",").map((p) => p.trim());
-    if (parts[0]) return parts[0];
+  if (vercelIp && vercelIp.trim()) {
+    const firstIp = vercelIp.split(",")[0]?.trim();
+    if (firstIp) return firstIp;
   }
 
   // Fail-closed fallback: unresolvable IP falls into shared constrained bucket

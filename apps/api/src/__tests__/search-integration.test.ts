@@ -129,7 +129,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
       await db.insert(listing).values(l);
       createdListingIds.push(l.id);
     }
-  });
+  }, 30000);
 
   afterAll(async () => {
     if (createdListingIds.length > 0) {
@@ -142,7 +142,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
   describe("Lifecycle Status Eligibility (Amendment e)", () => {
     it("never shows draft, pending_moderation, or archived listings under any query", async () => {
       const req = new NextRequest("http://localhost:3000/api/listings?q=MacBook", {
-        headers: { "x-forwarded-for": "10.0.1.1" },
+        headers: { "x-vercel-forwarded-for": "10.0.1.1" },
       });
       const res = await getListingsHandler(req);
       const data = await res.json();
@@ -155,7 +155,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
 
     it("excludes sold listings from unsearched home feed", async () => {
       const req = new NextRequest("http://localhost:3000/api/listings", {
-        headers: { "x-forwarded-for": "10.0.1.2" },
+        headers: { "x-vercel-forwarded-for": "10.0.1.2" },
       });
       const res = await getListingsHandler(req);
       const data = await res.json();
@@ -167,7 +167,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
 
     it("excludes sold listings from category browsing when no query is present", async () => {
       const req = new NextRequest("http://localhost:3000/api/listings?categoryId=cat_electronics", {
-        headers: { "x-forwarded-for": "10.0.1.3" },
+        headers: { "x-vercel-forwarded-for": "10.0.1.3" },
       });
       const res = await getListingsHandler(req);
       const data = await res.json();
@@ -178,7 +178,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
 
     it("excludes sold listings when availability filter is 'in_stock' even with keyword search", async () => {
       const req = new NextRequest("http://localhost:3000/api/listings?q=MacBook&availability=in_stock", {
-        headers: { "x-forwarded-for": "10.0.1.4" },
+        headers: { "x-vercel-forwarded-for": "10.0.1.4" },
       });
       const res = await getListingsHandler(req);
       const data = await res.json();
@@ -190,7 +190,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
 
     it("includes sold listings ONLY when keyword is present, ranking them last", async () => {
       const req = new NextRequest("http://localhost:3000/api/listings?q=MacBook&availability=all", {
-        headers: { "x-forwarded-for": "10.0.1.5" },
+        headers: { "x-vercel-forwarded-for": "10.0.1.5" },
       });
       const res = await getListingsHandler(req);
       const data = await res.json();
@@ -228,7 +228,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
           safeQueries.map(async (queryStr, i) => {
             const q = encodeURIComponent(queryStr);
             const req = new NextRequest(`http://localhost:3000/api/listings?q=${q}`, {
-              headers: { "x-forwarded-for": `10.0.2.${i + 1}` },
+              headers: { "x-vercel-forwarded-for": `10.0.2.${i + 1}` },
             });
             const res = await getListingsHandler(req);
             // Must succeed with HTTP 200, never crash with 500 syntax error
@@ -242,7 +242,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
     it("strictly rejects query strings exceeding 80 characters with 400", async () => {
       const longQuery = "a".repeat(81);
       const req = new NextRequest(`http://localhost:3000/api/listings?q=${longQuery}`, {
-        headers: { "x-forwarded-for": "10.0.3.1" },
+        headers: { "x-vercel-forwarded-for": "10.0.3.1" },
       });
       const res = await getListingsHandler(req);
       expect(res.status).toBe(400);
@@ -253,7 +253,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
     it("strictly rejects 10,000 character overflow attack string with 400", async () => {
       const overflowQuery = "x".repeat(10000);
       const req = new NextRequest(`http://localhost:3000/api/listings?q=${overflowQuery}`, {
-        headers: { "x-forwarded-for": "10.0.3.2" },
+        headers: { "x-vercel-forwarded-for": "10.0.3.2" },
       });
       const res = await getListingsHandler(req);
       expect(res.status).toBe(400);
@@ -265,7 +265,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
       // Query tied calculators with limit=2
       const page1Req = new NextRequest(
         "http://localhost:3000/api/listings?q=Scientific Calculator&sort=price_asc&limit=2",
-        { headers: { "x-forwarded-for": "10.0.4.1" } }
+        { headers: { "x-vercel-forwarded-for": "10.0.4.1" } }
       );
       const page1Res = await getListingsHandler(page1Req);
       const page1 = await page1Res.json();
@@ -277,7 +277,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
       // Page 2 using cursor
       const page2Req = new NextRequest(
         `http://localhost:3000/api/listings?q=Scientific Calculator&sort=price_asc&limit=2&cursor=${page1.nextCursor}`,
-        { headers: { "x-forwarded-for": "10.0.4.2" } }
+        { headers: { "x-vercel-forwarded-for": "10.0.4.2" } }
       );
       const page2Res = await getListingsHandler(page2Req);
       const page2 = await page2Res.json();
@@ -296,7 +296,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
   describe("Public Suggestion Endpoint (`GET /api/search/suggest`) (Amendment c)", () => {
     it("rejects queries under 2 characters with 400", async () => {
       const req = new NextRequest("http://localhost:3000/api/search/suggest?q=m", {
-        headers: { "x-forwarded-for": "10.0.5.1" },
+        headers: { "x-vercel-forwarded-for": "10.0.5.1" },
       });
       const res = await getSuggestionsHandler(req);
       expect(res.status).toBe(400);
@@ -304,7 +304,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
 
     it("returns up to 6 title suggestions for valid query", async () => {
       const req = new NextRequest("http://localhost:3000/api/search/suggest?q=MacBook", {
-        headers: { "x-forwarded-for": "10.0.5.2" },
+        headers: { "x-vercel-forwarded-for": "10.0.5.2" },
       });
       const res = await getSuggestionsHandler(req);
       expect(res.status).toBe(200);
@@ -316,7 +316,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
 
     it("sets edge cache headers on suggestions (s-maxage=60, stale-while-revalidate=120)", async () => {
       const req = new NextRequest("http://localhost:3000/api/search/suggest?q=Laptop", {
-        headers: { "x-forwarded-for": "10.0.5.3" },
+        headers: { "x-vercel-forwarded-for": "10.0.5.3" },
       });
       const res = await getSuggestionsHandler(req);
       expect(res.headers.get("cache-control")).toContain("public");
@@ -328,7 +328,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
   describe("Strict Privacy Boundary (Zero PII)", () => {
     it("ensures public listing cards never disclose seller userId, email, matricNumber, or phone", async () => {
       const req = new NextRequest("http://localhost:3000/api/listings?q=MacBook Pro M1", {
-        headers: { "x-forwarded-for": "10.0.6.1" },
+        headers: { "x-vercel-forwarded-for": "10.0.6.1" },
       });
       const res = await getListingsHandler(req);
       const data = await res.json();
@@ -347,7 +347,7 @@ describe("Search, Feed & Multi-Signal Discovery Integration Suite", () => {
 
     it("returns public edge cache headers (s-maxage=60, stale-while-revalidate=120)", async () => {
       const req = new NextRequest("http://localhost:3000/api/listings", {
-        headers: { "x-forwarded-for": "10.0.6.2" },
+        headers: { "x-vercel-forwarded-for": "10.0.6.2" },
       });
       const res = await getListingsHandler(req);
       expect(res.headers.get("cache-control")).toContain("public");

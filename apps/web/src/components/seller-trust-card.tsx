@@ -71,9 +71,16 @@ export function SellerTrustCard({ seller, className }: SellerTrustCardProps) {
           {/* Student Status Badge */}
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <UserCheck className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span>
+            <span
+              title={
+                seller.studentVerificationStatus === "verified"
+                  ? "Verification is performed by Downtown through student ID inspection, not by the university."
+                  : undefined
+              }
+              className="cursor-help"
+            >
               {seller.studentVerificationStatus === "verified"
-                ? "Verified UNIOSUN Student"
+                ? "Verified student seller"
                 : seller.studentVerificationStatus === "pending"
                 ? "Student (Verification Pending)"
                 : "Student Community Seller"}

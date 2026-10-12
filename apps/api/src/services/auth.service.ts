@@ -75,11 +75,7 @@ export const auth = betterAuth({
   trustedOrigins: getTrustedOrigins(),
   advanced: {
     ipAddress: {
-      ipAddressHeaders: [
-        "x-vercel-forwarded-for",
-        "x-real-ip",
-        "x-forwarded-for",
-      ],
+      ipAddressHeaders: ["x-vercel-forwarded-for"],
     },
   },
   rateLimit: {

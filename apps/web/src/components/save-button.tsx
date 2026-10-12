@@ -50,6 +50,10 @@ export function SaveButton({
           setIsLoading(true);
           const res = await fetch(`/api/listings/${listingId}/save`, {
             method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ saved: nextState }),
           });
 
           if (!res.ok) {

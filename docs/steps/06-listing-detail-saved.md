@@ -184,3 +184,19 @@ Deliver the complete, responsive public listing detail experience and persistent
 4. **Production Database Migration**:
    - Ran `scripts/run-prod-migrations.ps1 -Action migrate -ConfirmHost 'ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech'`
    - Verified `saved_listings` table created and live on production Neon database.
+5. **Two-Axis Code Review Findings (Traceable to diff `07b7c01..5e3b753`)**:
+   - **Standards**:
+     - `apps/web/src/components/campus-safety-notice.tsx:28` (Medium - Fixed in Step 06b Audit): Notice previously altered SRS phrasing and invented campus locations ("Main Gate, ETF Hall, or Faculty car parks"). Fixed in `step/06b-audit` using verbatim SRS sentence with zero invented place names.
+     - `apps/web/src/components/seller-trust-card.tsx:75` (Medium - Fixed in Step 06b Audit): Trust badge claimed "Verified UNIOSUN Student". Fixed in `step/06b-audit` with honest copy "Verified student seller" and explicit disclaimer tooltip clarifying verification is by Downtown, not the university.
+     - `apps/web/src/app/listings/[id]/page.tsx:245` (Low - Fixed in Step 06b Audit): Sub-area fallback used non-neutral copy "Campus-wide pickup". Fixed in `step/06b-audit` with neutral copy "No sub-areas listed for this campus yet".
+   - **Spec**:
+     - `apps/api/src/app/api/listings/[id]/save/route.ts:21` & `apps/web/src/components/save-button.tsx:51` (Medium - Fixed in Step 06b Audit): Save/unsave was non-idempotent toggle prone to double-tap inversion. Fixed in `step/06b-audit` by implementing idempotent `setSavedStatus` with `onConflictDoNothing`, explicit `{ saved: boolean }` payload on `POST`, plus `PUT` (save) and `DELETE` (unsave).
+     - `apps/web/src/app/listings/[id]/view-tracker.tsx:15` (Low - Fixed in Step 06b Audit): View-count call used standard `fetch` without `keepalive: true`. Fixed in `step/06b-audit` with fire-and-forget transport (`navigator.sendBeacon` with fallback to `fetch keepalive`).
+     - `apps/api/src/app/api/listings/[id]/route.ts:34` (Low - Verified Pass): Public detail cache headers match invariant (`public, s-maxage=60, stale-while-revalidate=120`). Verified in automated tests.
+   - **Summary**: 6 total findings (3 Standards, 3 Spec). All findings resolved and verified against diff `07b7c01..5e3b753`.
+6. **Visual Evidence (`docs/steps/assets/06-*`)**:
+   - `06-listing-detail-photos-1280.png` & `06-listing-detail-photos-375.png`: Listing detail page with photo carousel and full seller trust card at 1280px and 375px viewports.
+   - `06-listing-detail-nophotos-1280.png` & `06-listing-detail-nophotos-375.png`: Listing detail page fallback with placeholder illustration when no photos are attached.
+   - `06-listing-detail-sold-1280.png` & `06-listing-detail-sold-375.png`: Listing detail page displaying prominent `SOLD` badge and disabled action states.
+   - `06-listing-detail-saved-1280.png` & `06-listing-detail-saved-375.png`: Listing detail page showing active `Saved` heart button state.
+   - `06-saved-page-1280.png` & `06-saved-page-375.png`: `/saved` page displaying student's saved collection with price, campus, and removal actions.
