@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatNaira, cn } from "@downtown/utils";
 import type { PublicListingCard } from "@downtown/types";
 import { BadgeCheck, MapPin } from "lucide-react";
+import { SaveButton } from "@/components/save-button";
 
 export interface ListingCardProps {
   listing: PublicListingCard;
@@ -20,7 +21,7 @@ const CONDITION_LABELS: Record<string, string> = {
 export function ListingCard({ listing, priority = false, className }: ListingCardProps) {
   const isSold = listing.availability === "sold";
   const isReserved = listing.availability === "reserved";
-  const displayPrice = formatNaira(Math.round(listing.price / 100));
+  const displayPrice = formatNaira(listing.price);
 
   return (
     <article
@@ -73,6 +74,14 @@ export function ListingCard({ listing, priority = false, className }: ListingCar
                 Sold
               </span>
             )}
+          </div>
+
+          {/* Save Button Overlay */}
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <SaveButton
+              listingId={listing.id}
+              className="bg-background/80 hover:bg-background backdrop-blur-sm shadow-sm"
+            />
           </div>
         </div>
 

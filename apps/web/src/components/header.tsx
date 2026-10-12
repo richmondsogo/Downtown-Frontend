@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ShieldCheck,
   Store,
+  Heart,
 } from "lucide-react";
 
 export function Header() {
@@ -73,7 +74,15 @@ export function Header() {
       </Link>
 
       {/* Auth state actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <Link
+          href="/saved"
+          aria-label="View saved listings"
+          className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+        >
+          <Heart className="h-4 w-4" />
+        </Link>
+
         {isPending ? (
           <div className="h-9 w-20 bg-muted animate-pulse rounded-md" />
         ) : user ? (
@@ -123,7 +132,15 @@ export function Header() {
                   )}
                 </div>
 
-                <div className="pt-0.5">
+                <div className="pt-0.5 space-y-1">
+                  <Link
+                    href="/saved"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted rounded-md transition-colors"
+                  >
+                    <Heart className="h-4 w-4 text-red-500" />
+                    <span>Saved Listings</span>
+                  </Link>
                   <Link
                     href="/sell"
                     onClick={() => setMenuOpen(false)}

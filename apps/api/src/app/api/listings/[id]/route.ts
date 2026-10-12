@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeUser } from "../../../../services/auth-guard";
 import { listingService, ApiError } from "../../../../services/listing.service";
+import { auth } from "../../../../services/auth.service";
 import { UpdateListingSchema } from "@downtown/validation";
 
 interface RouteParams {
@@ -10,20 +11,34 @@ interface RouteParams {
 /**
  * GET /api/listings/:id
  *
- * Owner-only private read in Step 04. IDOR protected.
+ * Public listing detail projection with strict privacy boundaries:
+ * - Publicly visible for published, reserved, and sold listings.
+ * - Private (owner-only) for draft, pending_moderation, and archived listings (IDOR protected, returns 403).
+ * - Edge cached with public, s-maxage=60, stale-while-revalidate=120 for unauthenticated requests.
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const auth = await authorizeUser(req, { requireCanSell: false });
-    if (auth.errorResponse) return auth.errorResponse;
 
-    const item = await listingService.getListingById(auth.user.id, id);
-    return NextResponse.json(item, {
+    // Resolve optional authenticated user session
+    const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
+    const currentUserId = session?.user?.id ? String(session.user.id) : null;
+
+    const detail = await listingService.getPublicListingDetail(id, currentUserId);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (!currentUserId && (detail.status === "published" || detail.status === "reserved" || detail.status === "sold")) {
+      headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=120";
+    } else {
+      headers["Cache-Control"] = "private, no-cache, no-store, must-revalidate";
+    }
+
+    return NextResponse.json(detail, {
       status: 200,
-      headers: {
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
-      },
+      headers,
     });
   } catch (error) {
     if (error instanceof ApiError) {

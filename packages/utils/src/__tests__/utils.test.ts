@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canSell, formatNaira, cn } from "../index";
+import { canSell, formatNaira, cn, formatMemberSince, formatTimeAgo } from "../index";
 
 describe("Utils: canSell", () => {
   it("returns true only for verified sellers", () => {
@@ -49,3 +49,24 @@ describe("Utils: cn", () => {
     expect(cn("text-red-500", undefined, null, false && "hidden")).toBe("text-red-500");
   });
 });
+
+describe("Utils: formatMemberSince & formatTimeAgo", () => {
+  it("formats member join dates into Month Year", () => {
+    expect(formatMemberSince(new Date("2026-10-01"))).toMatch(/Oct 2026/);
+    expect(formatMemberSince(null)).toBe("Recently");
+    expect(formatMemberSince("invalid")).toBe("Recently");
+  });
+
+  it("formats relative time ago", () => {
+    const now = new Date();
+    expect(formatTimeAgo(now)).toBe("Just now");
+    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    expect(formatTimeAgo(fiveMinAgo)).toBe("5m ago");
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    expect(formatTimeAgo(twoHoursAgo)).toBe("2h ago");
+    const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);
+    expect(formatTimeAgo(fourDaysAgo)).toBe("4d ago");
+    expect(formatTimeAgo(null)).toBe("Recently");
+  });
+});
+

@@ -226,3 +226,62 @@ export interface SearchSuggestion {
   title: string;
 }
 
+export interface PublicListingPhoto {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+  position: number;
+}
+
+export interface SellerTrustProfile {
+  displayName: string;
+  avatarUrl?: string | null;
+  isVerifiedSeller: boolean;
+  campusName: string;
+  studentVerificationStatus: "verified" | "pending" | "not_a_seller";
+  memberSince: string;
+  totalActiveListings?: number;
+}
+
+export interface PublicListingDetail {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  isNegotiable: boolean;
+  condition?: ListingCondition | null;
+  categoryId?: string;
+  locationId?: string;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  location: {
+    id: string;
+    name: string;
+    campusName: string;
+    campusSlug: string;
+    type: LocationType;
+  };
+  photos: PublicListingPhoto[];
+  seller: SellerTrustProfile;
+  availability: ListingAvailability;
+  status: ListingStatus;
+  viewCount: number;
+  isSaved?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedListingItem {
+  listing: PublicListingCard;
+  savedAt: string;
+}
+
+export interface ToggleSaveResponse {
+  saved: boolean;
+}
+

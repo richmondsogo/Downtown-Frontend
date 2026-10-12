@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, bigint, check, index, customType } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, bigint, check, index, customType, primaryKey } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 const tsvector = customType<{ data: string }>({
@@ -167,6 +167,7 @@ export const listing = pgTable(
     quantityReserved: integer("quantity_reserved").notNull().default(0),
     status: text("status").notNull().default("draft"),
     searchVector: tsvector("search_vector"),
+    viewCount: integer("view_count").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -231,5 +232,24 @@ export const moderationRecord = pgTable(
   ]
 );
 export const moderationRecords = moderationRecord;
+
+export const savedListing = pgTable(
+  "saved_listings",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.listingId] }),
+    index("saved_listings_user_created_idx").on(table.userId, table.createdAt),
+    index("saved_listings_listing_idx").on(table.listingId),
+  ]
+);
+export const savedListings = savedListing;
 
 

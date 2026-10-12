@@ -64,3 +64,32 @@ export function formatDisplayName(
   return `${firstName} ${lastInitial.toUpperCase()}.`;
 }
 
+/**
+ * Formats a join date as Month Year (e.g. "Oct 2026").
+ */
+export function formatMemberSince(date: Date | string | null | undefined): string {
+  if (!date) return "Recently";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Recently";
+  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+
+/**
+ * Formats relative time friendly for listings (e.g. "2h ago", "3d ago").
+ */
+export function formatTimeAgo(date: Date | string | null | undefined): string {
+  if (!date) return "Recently";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "Recently";
+  const now = new Date();
+  const diffSec = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000));
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
