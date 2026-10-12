@@ -5,8 +5,11 @@ import {
   moderationRecord,
   category,
   location,
+  campus,
+  user,
+  savedListing,
 } from "../db/schema";
-import { eq, and, isNull, desc, inArray, asc, sql, lt } from "drizzle-orm";
+import { eq, and, isNull, desc, inArray, asc, sql, lt, count } from "drizzle-orm";
 import {
   DraftListingInput,
   SubmitListingInput,
@@ -20,7 +23,9 @@ import {
 import { defaultModerationService } from "./moderation.service";
 import { getStorageService } from "./storage.service";
 import { processListingPhoto } from "./image.service";
-import type { Listing, ListingPhoto } from "@downtown/types";
+import { checkRateLimit } from "./rate-limit.service";
+import { formatDisplayName, formatMemberSince } from "@downtown/utils";
+import type { Listing, ListingPhoto, PublicListingDetail, PublicListingPhoto } from "@downtown/types";
 import crypto from "crypto";
 
 export const DEFAULT_STORAGE_SOFT_CAP_BYTES = 800 * 1024 * 1024; // 800 MB
@@ -783,6 +788,173 @@ export class ListingService {
 
     return { count: idsToDelete.length, bytesFreed };
   }
+
+  /**
+   * Retrieves high-fidelity public listing detail projection with strict privacy boundaries:
+   * - Publicly visible for published, reserved, and sold listings.
+   * - Private for draft, pending_moderation, and archived listings (owner-only access, throws 403 otherwise).
+   * - Zero seller PII exposed (no email, phone, matric number, or internal seller userId).
+   */
+  async getPublicListingDetail(
+    listingId: string,
+    currentUserId?: string | null
+  ): Promise<PublicListingDetail> {
+    const [row] = await db
+      .select({
+        listing,
+        category,
+        location,
+        campus,
+        user,
+      })
+      .from(listing)
+      .leftJoin(category, eq(listing.categoryId, category.id))
+      .leftJoin(location, eq(listing.locationId, location.id))
+      .leftJoin(campus, eq(location.campusId, campus.id))
+      .leftJoin(user, eq(listing.sellerId, user.id))
+      .where(eq(listing.id, listingId))
+      .limit(1);
+
+    if (!row) {
+      throw new NotFoundError("Listing not found.");
+    }
+
+    const isPrivateStatus = ["draft", "pending_moderation", "archived"].includes(row.listing.status);
+    if (isPrivateStatus) {
+      if (!currentUserId || currentUserId !== row.listing.sellerId) {
+        throw new ForbiddenError("You do not have permission to view this listing.");
+      }
+    }
+
+    const photos = await db
+      .select()
+      .from(listingPhoto)
+      .where(eq(listingPhoto.listingId, listingId))
+      .orderBy(asc(listingPhoto.position));
+
+    const storage = getStorageService();
+    const publicPhotos: PublicListingPhoto[] = photos.map((p) => {
+      const displayUrl = p.key.startsWith("http")
+        ? p.key.split("?")[0]
+        : storage.getPublicUrl(p.key).split("?")[0];
+      const thumbUrl = p.thumbKey.startsWith("http")
+        ? p.thumbKey.split("?")[0]
+        : storage.getPublicUrl(p.thumbKey).split("?")[0];
+
+      return {
+        id: p.id,
+        url: displayUrl,
+        thumbUrl: thumbUrl,
+        width: p.width,
+        height: p.height,
+        position: p.position,
+      };
+    });
+
+    let isSaved = false;
+    if (currentUserId) {
+      const [savedRow] = await db
+        .select({ count: count() })
+        .from(savedListing)
+        .where(and(eq(savedListing.userId, currentUserId), eq(savedListing.listingId, listingId)))
+        .limit(1);
+      isSaved = (Number(savedRow?.count) || 0) > 0;
+    }
+
+    const [{ count: activeCount }] = await db
+      .select({ count: count() })
+      .from(listing)
+      .where(and(eq(listing.sellerId, row.listing.sellerId), eq(listing.status, "published")));
+
+    const studentVerificationStatus: "verified" | "pending" | "not_a_seller" =
+      row.user?.emailVerified && row.user?.matricNumber
+        ? "verified"
+        : row.user?.sellerStatus === "pending_verification"
+        ? "pending"
+        : "not_a_seller";
+
+    const availability =
+      row.listing.status === "sold"
+        ? "sold"
+        : row.listing.status === "reserved"
+        ? "reserved"
+        : "available";
+
+    return {
+      id: row.listing.id,
+      title: row.listing.title,
+      description: row.listing.description,
+      price: row.listing.price,
+      isNegotiable: row.listing.isNegotiable,
+      condition: (row.listing.condition as any) || null,
+      categoryId: row.listing.categoryId,
+      locationId: row.listing.locationId,
+      category: {
+        id: row.category?.id || row.listing.categoryId,
+        name: row.category?.name || "Other",
+        slug: row.category?.slug || "other",
+      },
+      location: {
+        id: row.location?.id || row.listing.locationId,
+        name: row.location?.name || "Campus",
+        campusName: row.campus?.name || "UNIOSUN",
+        campusSlug: row.campus?.slug || "uniosun",
+        type: (row.location?.type as any) || "campus",
+      },
+      photos: publicPhotos,
+      seller: {
+        displayName: formatDisplayName(row.user?.name || "Seller"),
+        avatarUrl: row.user?.image || null,
+        isVerifiedSeller: row.user?.sellerStatus === "verified",
+        campusName: row.campus?.name || "UNIOSUN",
+        studentVerificationStatus,
+        memberSince: formatMemberSince(row.user?.createdAt),
+        totalActiveListings: Number(activeCount) || 0,
+      },
+      availability,
+      status: row.listing.status as ListingStatus,
+      viewCount: row.listing.viewCount ?? 0,
+      isSaved,
+      createdAt: row.listing.createdAt.toISOString(),
+      updatedAt: row.listing.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Lightweight view count increment with IP rate limiting.
+   */
+  async incrementViewCount(
+    listingId: string,
+    clientIp: string
+  ): Promise<{ ok: boolean; viewCount: number }> {
+    const [target] = await db
+      .select({ id: listing.id, viewCount: listing.viewCount })
+      .from(listing)
+      .where(eq(listing.id, listingId))
+      .limit(1);
+
+    if (!target) {
+      throw new NotFoundError("Listing not found.");
+    }
+
+    const rateLimitKey = `view:${listingId}:${clientIp}`;
+    const rlResult = await checkRateLimit(rateLimitKey, 1, 60_000);
+
+    if (!rlResult.success) {
+      return { ok: true, viewCount: target.viewCount ?? 0 };
+    }
+
+    const [updated] = await db
+      .update(listing)
+      .set({
+        viewCount: sql`${listing.viewCount} + 1`,
+      })
+      .where(eq(listing.id, listingId))
+      .returning({ viewCount: listing.viewCount });
+
+    return { ok: true, viewCount: updated?.viewCount ?? (target.viewCount + 1) };
+  }
 }
 
 export const listingService = new ListingService();
+
