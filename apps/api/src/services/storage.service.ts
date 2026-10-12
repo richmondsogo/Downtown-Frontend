@@ -116,7 +116,16 @@ export class VercelBlobStorageService implements StorageService {
   }
 
   getPublicUrl(keyOrUrl: string): string {
-    return keyOrUrl;
+    if (keyOrUrl.startsWith("http://") || keyOrUrl.startsWith("https://")) {
+      return keyOrUrl;
+    }
+    const cleanKey = keyOrUrl.replace(/^\//, "");
+    const storeId = process.env.BLOB_STORE_ID || process.env.DEV_STORE_ID;
+    if (storeId) {
+      const subdomain = storeId.replace(/^store_/, "").toLowerCase();
+      return `https://${subdomain}.public.blob.vercel-storage.com/${cleanKey}`;
+    }
+    return `https://public.blob.vercel-storage.com/${cleanKey}`;
   }
 }
 
