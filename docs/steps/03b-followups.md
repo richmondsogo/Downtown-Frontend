@@ -127,6 +127,16 @@ Diff inspected: `072b1ea..19ae009` (44 files, +4106 / -121).
 
 ---
 
+## Diff / Checkpoint
+
+- **Pull Request URL**: `https://github.com/richmondsogo/Downtown-Frontend/pull/8`
+- **First Commit SHA**: `9cb6478`
+- **Last Commit SHA**: `fbf2ef6`
+- **Merge Commit SHA**: `252b385`
+- **Merge Strategy**: Standard merge commit (`--no-ff`)
+
+---
+
 ## Decisions
 
 - **ADR 0008**: Dynamically derive matching preview API deployment origin from Vercel Git metadata in Next.js rewrites.
