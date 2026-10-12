@@ -17,11 +17,14 @@ This checklist defines mandatory operational, security, legal, and QA checkpoint
 - [ ] **Remove `ProductionEmailService` Stub**:
   - Verify that `getEmailService()` in `apps/api/src/services/email.service.ts` routes all outbound emails to `ResendEmailService`.
   - Confirm real OTP verification and password reset emails deliver successfully to real Gmail/Yahoo test accounts.
-- [ ] **Cloudflare R2 Production Bucket & Token**:
-  - Provision production R2 bucket (e.g. `downtown-photos-prod`).
-  - Create scoped Cloudflare API token with Object Read/Write access restricted strictly to the production bucket.
-  - Configure custom public CDN domain on the R2 bucket.
-  - Inject `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, and `R2_PUBLIC_BASE_URL` into Vercel production environment.
+- [ ] **Vercel Blob Production Store & Quota Monitoring**:
+  - Re-check Vercel Hobby commercial-use terms against Vercel's primary fair-use page before launch (upgrade to Pro if we charge anything on the platform).
+  - Create the production Blob store (`downtown-listings-prod`) in Vercel dashboard with the default `BLOB` prefix (generating `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, etc.), connected to Production only if the dialog allows it.
+  - Confirm production code strictly reads `BLOB_READ_WRITE_TOKEN` when `VERCEL_ENV === "production"` and fails closed if missing (never falls back to `DEV_*` tokens).
+  - Set `STORAGE_PROVIDER="vercel_blob"` in Vercel production environment for `downtown-api`.
+  - Verify `STORAGE_SOFT_CAP_BYTES="838860800"` (800 MB soft cap guarding the 1 GB Hobby limit).
+  - Configure monitoring for store usage against the cap; operational upgrade/migrate trigger set at ~70% of 1 GB (~700 MB) to transition to Pro or migrate to Supabase Storage.
+  - Verify public URLs and immutable edge cache headers (`cacheControlMaxAge: 31536000`) so CDN hits do not count toward Blob transfer.
 - [x] **Student Areas Reference Data (`docs/data/student-areas.csv`)**:
   - Curated UNIOSUN student residential areas populated across Osogbo campus.
   - Seeded into production PostgreSQL reference data via `scripts/run-prod-migrations.ps1 -Action seed-taxonomy`.

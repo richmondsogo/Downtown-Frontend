@@ -1,0 +1,1 @@
+ALTER TABLE "listing_photos" ADD COLUMN "bytes" integer DEFAULT 0 NOT NULL;

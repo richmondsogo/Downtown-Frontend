@@ -1,0 +1,47 @@
+term,category,notes
+handgun,weapons_ammunition,Firearm
+pistol,weapons_ammunition,Firearm
+rifle,weapons_ammunition,Firearm
+shotgun,weapons_ammunition,Firearm
+firearm,weapons_ammunition,Generic firearm
+ammunition,weapons_ammunition,Bullets and ammo
+ammo,weapons_ammunition,Short for ammunition
+grenade,weapons_ammunition,Explosive device
+explosive,weapons_ammunition,Bomb or explosive
+switchblade,weapons_ammunition,Restricted blade
+machete,weapons_ammunition,Offensive weapon when listed for assault
+cocaine,drugs_paraphernalia,Illicit drug
+heroin,drugs_paraphernalia,Illicit drug
+methamphetamine,drugs_paraphernalia,Illicit drug
+crystal meth,drugs_paraphernalia,Illicit drug
+marijuana,drugs_paraphernalia,Cannabis
+weed,drugs_paraphernalia,Cannabis slang
+cannabis,drugs_paraphernalia,Cannabis
+tramadol,drugs_paraphernalia,Controlled opioid substance
+codeine,drugs_paraphernalia,Controlled opioid substance
+ecstasy,drugs_paraphernalia,Illicit party drug
+mdma,drugs_paraphernalia,Illicit party drug
+drug paraphernalia,drugs_paraphernalia,Drug ingestion items
+counterfeit currency,counterfeit,Fake money
+counterfeit money,counterfeit,Fake banknotes
+fake currency,counterfeit,Fake banknotes
+fake notes,counterfeit,Counterfeit money
+forged documents,counterfeit,Forged legal papers
+fake passport,counterfeit,Fraudulent identification
+stolen goods,stolen_goods,Stolen property
+stolen phone,stolen_goods,Stolen mobile device
+stolen laptop,stolen_goods,Stolen computer
+live animal,live_animals,Animals trade prohibition
+live dog,live_animals,Pet trade
+live cat,live_animals,Pet trade
+live monkey,live_animals,Wild animal trade
+pornography,adult_content,Explicit adult material
+escort service,adult_content,Commercial sex work
+prostitution,adult_content,Commercial sex work
+adult content,adult_content,Explicit adult material
+exam leakage,academic_dishonesty,Examination breach
+exam answers,academic_dishonesty,Malpractice material
+assignment writing service,academic_dishonesty,Contract cheating
+essay writing service,academic_dishonesty,Contract cheating
+fake certificate,academic_dishonesty,Credential fraud
+forged certificate,academic_dishonesty,Credential fraud

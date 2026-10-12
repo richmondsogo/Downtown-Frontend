@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronDown,
   ShieldCheck,
+  Store,
 } from "lucide-react";
 
 export function Header() {
@@ -122,7 +123,18 @@ export function Header() {
                   )}
                 </div>
 
-                <div className="pt-1">
+                <div className="pt-0.5">
+                  <Link
+                    href="/sell"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted rounded-md transition-colors"
+                  >
+                    <Store className="h-4 w-4 text-primary" />
+                    <span>Seller Dashboard</span>
+                  </Link>
+                </div>
+
+                <div className="pt-1 border-t border-border">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -138,6 +150,12 @@ export function Header() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
+            <Link href="/sell">
+              <Button variant="outline" size="sm" className="h-9 px-3 text-xs sm:text-sm gap-1.5">
+                <Store className="h-3.5 w-3.5 text-primary" />
+                <span>Sell</span>
+              </Button>
+            </Link>
             <Link href="/login">
               <Button variant="ghost" size="sm" className="h-9 px-3 text-xs sm:text-sm">
                 Sign In

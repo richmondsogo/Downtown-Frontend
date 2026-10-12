@@ -139,3 +139,87 @@ export const location = pgTable(
   ]
 );
 
+export const listing = pgTable(
+  "listings",
+  {
+    id: text("id").primaryKey(),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    price: integer("price").notNull(),
+    isNegotiable: boolean("is_negotiable").notNull().default(false),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => category.id, { onDelete: "restrict" }),
+    condition: text("condition"),
+    locationId: text("location_id")
+      .notNull()
+      .references(() => location.id, { onDelete: "restrict" }),
+    quantityAvailable: integer("quantity_available").notNull().default(1),
+    quantityReserved: integer("quantity_reserved").notNull().default(0),
+    status: text("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("listing_status_check", sql`${table.status} IN ('draft', 'pending_moderation', 'published', 'reserved', 'sold', 'archived')`),
+    check("listing_condition_check", sql`${table.condition} IS NULL OR ${table.condition} IN ('new', 'like_new', 'good', 'fair')`),
+    check("listing_price_check", sql`${table.price} >= 1`),
+    check("listing_quantity_check", sql`${table.quantityAvailable} >= 1 AND ${table.quantityReserved} >= 0`),
+    index("listing_seller_status_idx").on(table.sellerId, table.status),
+    index("listing_status_created_at_idx").on(table.status, table.createdAt),
+    index("listing_category_idx").on(table.categoryId),
+    index("listing_location_idx").on(table.locationId),
+  ]
+);
+export const listings = listing;
+
+export const listingPhoto = pgTable(
+  "listing_photos",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    listingId: text("listing_id").references(() => listing.id, { onDelete: "cascade" }),
+    key: text("key").notNull().unique(),
+    thumbKey: text("thumb_key").notNull().unique(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    bytes: integer("bytes").notNull().default(0),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("listing_photo_listing_pos_idx").on(table.listingId, table.position),
+    index("listing_photo_owner_unattached_idx").on(table.ownerId, table.listingId),
+  ]
+);
+export const listingPhotos = listingPhoto;
+
+export const moderationRecord = pgTable(
+  "moderation_records",
+  {
+    id: text("id").primaryKey(),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    type: text("type").notNull().default("keyword_scan"),
+    result: text("result").notNull(),
+    flags: text("flags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    reviewedBy: text("reviewed_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("moderation_record_result_check", sql`${table.result} IN ('clean', 'flagged')`),
+    index("moderation_record_listing_idx").on(table.listingId),
+  ]
+);
+export const moderationRecords = moderationRecord;
+
+
