@@ -219,3 +219,200 @@ export const LocationAutocompleteQuerySchema = z.object({
   campusId: z.string().trim().optional(),
 });
 export type LocationAutocompleteQuery = z.infer<typeof LocationAutocompleteQuerySchema>;
+
+/**
+ * Maximum listing price in Nigerian Naira (₦50,000,000).
+ */
+export const MAX_LISTING_PRICE_NAIRA = 50_000_000;
+
+export const ListingStatusEnum = z.enum([
+  "draft",
+  "pending_moderation",
+  "published",
+  "reserved",
+  "sold",
+  "archived",
+]);
+export type ListingStatus = z.infer<typeof ListingStatusEnum>;
+
+export const ListingConditionEnum = z.enum(["new", "like_new", "good", "fair"]);
+export type ListingCondition = z.infer<typeof ListingConditionEnum>;
+
+export type CategoryConditionRequirement =
+  | "required"
+  | "not_applicable"
+  | "optional";
+
+/**
+ * Single source of truth configuration map for category condition requirements.
+ * Default:
+ * - required: Electronics, Fashion & Accessories, Home & Living, Books & Study Materials, Beauty & Personal Care
+ * - not_applicable: Food & Drinks, Services, Tickets & Events
+ * - optional: Other
+ */
+export const CATEGORY_CONDITION_RULES: Record<string, CategoryConditionRequirement> = {
+  // Slugs
+  "electronics": "required",
+  "fashion-accessories": "required",
+  "home-living": "required",
+  "books-study-materials": "required",
+  "beauty-personal-care": "required",
+  "food-drinks": "not_applicable",
+  "services": "not_applicable",
+  "tickets-events": "not_applicable",
+  "other": "optional",
+  // IDs
+  "cat_electronics": "required",
+  "cat_fashion_accessories": "required",
+  "cat_home_living": "required",
+  "cat_books_study_materials": "required",
+  "cat_beauty_personal_care": "required",
+  "cat_food_drinks": "not_applicable",
+  "cat_services": "not_applicable",
+  "cat_tickets_events": "not_applicable",
+  "cat_other": "optional",
+  // Names
+  "Electronics": "required",
+  "Fashion & Accessories": "required",
+  "Home & Living": "required",
+  "Books & Study Materials": "required",
+  "Beauty & Personal Care": "required",
+  "Food & Drinks": "not_applicable",
+  "Services": "not_applicable",
+  "Tickets & Events": "not_applicable",
+  "Other": "optional",
+};
+
+export function getCategoryConditionRequirement(
+  categoryIdentifier: string
+): CategoryConditionRequirement {
+  return CATEGORY_CONDITION_RULES[categoryIdentifier] ?? "optional";
+}
+
+/**
+ * Allowed status transitions for Step 04.
+ * draft -> pending_moderation -> published (when clean) or stay pending_moderation (flagged).
+ * published -> pending_moderation (on high-risk edit).
+ * Reserved/Sold come in Steps 07-08.
+ */
+export const ALLOWED_LISTING_TRANSITIONS: Record<
+  ListingStatus,
+  readonly ListingStatus[]
+> = {
+  draft: ["pending_moderation"],
+  pending_moderation: ["published"],
+  published: ["pending_moderation"],
+  reserved: [],
+  sold: [],
+  archived: [],
+};
+
+export function isAllowedListingTransition(
+  from: ListingStatus,
+  to: ListingStatus
+): boolean {
+  if (from === to) return true;
+  return ALLOWED_LISTING_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+export const DraftListingSchema = z.object({
+  title: z.string().trim().max(100).optional().default(""),
+  description: z.string().trim().max(2000).optional().default(""),
+  price: z
+    .number()
+    .int("Price must be a whole integer in Naira")
+    .min(1, "Price must be at least ₦1")
+    .max(MAX_LISTING_PRICE_NAIRA, `Price cannot exceed ₦${MAX_LISTING_PRICE_NAIRA.toLocaleString()}`)
+    .optional()
+    .nullable(),
+  isNegotiable: z.boolean().optional().default(false),
+  categoryId: z.string().trim().optional().nullable(),
+  condition: ListingConditionEnum.optional().nullable(),
+  locationId: z.string().trim().optional().nullable(),
+  quantityAvailable: z
+    .number()
+    .int("Quantity must be a whole number")
+    .min(1, "Quantity must be at least 1")
+    .max(999, "Quantity cannot exceed 999")
+    .optional()
+    .default(1),
+  photoIds: z.array(z.string().trim()).max(5, "Maximum 5 photos allowed").optional().default([]),
+});
+export type DraftListingInput = z.input<typeof DraftListingSchema>;
+
+export const SubmitListingSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(3, "Title must be at least 3 characters")
+    .max(100, "Title cannot exceed 100 characters"),
+  description: z
+    .string()
+    .trim()
+    .max(2000, "Description cannot exceed 2000 characters")
+    .optional()
+    .default(""),
+  price: z
+    .number({ required_error: "Price is required" })
+    .int("Price must be a whole integer in Naira")
+    .min(1, "Price must be at least ₦1")
+    .max(MAX_LISTING_PRICE_NAIRA, `Price cannot exceed ₦${MAX_LISTING_PRICE_NAIRA.toLocaleString()}`),
+  isNegotiable: z.boolean().optional().default(false),
+  categoryId: z.string().trim().min(1, "Category is required"),
+  condition: ListingConditionEnum.optional().nullable(),
+  locationId: z.string().trim().min(1, "Location is required"),
+  quantityAvailable: z
+    .number()
+    .int("Quantity must be a whole number")
+    .min(1, "Quantity must be at least 1")
+    .max(999, "Quantity cannot exceed 999")
+    .optional()
+    .default(1),
+  photoIds: z
+    .array(z.string().trim())
+    .min(1, "At least 1 photo is required")
+    .max(5, "Maximum 5 photos allowed"),
+});
+export type SubmitListingInput = z.input<typeof SubmitListingSchema>;
+
+export const UpdateListingSchema = z.object({
+  title: z.string().trim().min(3).max(100).optional(),
+  description: z.string().trim().max(2000).optional(),
+  price: z.number().int().min(1).max(MAX_LISTING_PRICE_NAIRA).optional(),
+  isNegotiable: z.boolean().optional(),
+  categoryId: z.string().trim().min(1).optional(),
+  condition: ListingConditionEnum.optional().nullable(),
+  locationId: z.string().trim().min(1).optional(),
+  quantityAvailable: z.number().int().min(1).max(999).optional(),
+  photoIds: z.array(z.string().trim()).min(1).max(5).optional(),
+});
+export type UpdateListingInput = z.infer<typeof UpdateListingSchema>;
+
+/**
+ * Determines whether an edit constitutes a high-risk change.
+ * High-risk fields per SRS 5.5: price, category, photos, title, condition.
+ * Low-risk fields: description wording, location.
+ */
+export function isHighRiskListingEdit(
+  original: {
+    title: string;
+    price: number;
+    categoryId: string;
+    condition?: string | null;
+    photoIds?: string[];
+  },
+  changes: Partial<UpdateListingInput>
+): boolean {
+  if (changes.title !== undefined && changes.title !== original.title) return true;
+  if (changes.price !== undefined && changes.price !== original.price) return true;
+  if (changes.categoryId !== undefined && changes.categoryId !== original.categoryId) return true;
+  if (changes.condition !== undefined && changes.condition !== original.condition) return true;
+  if (changes.photoIds !== undefined) {
+    const orig = original.photoIds ?? [];
+    if (orig.length !== changes.photoIds.length || orig.some((p, i) => p !== changes.photoIds?.[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+

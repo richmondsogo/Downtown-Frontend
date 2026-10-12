@@ -111,3 +111,60 @@ export interface LocationAutocompleteQuery {
   q?: string;
   campusId?: string;
 }
+
+export type ListingStatus =
+  | "draft"
+  | "pending_moderation"
+  | "published"
+  | "reserved"
+  | "sold"
+  | "archived";
+
+export type ListingCondition = "new" | "like_new" | "good" | "fair";
+
+export type CategoryConditionRequirement = "required" | "not_applicable" | "optional";
+
+export interface ListingPhoto {
+  id: string;
+  ownerId: string;
+  listingId?: string | null;
+  key: string;
+  thumbKey: string;
+  url: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+  bytes: number;
+  position: number;
+  createdAt: Date | string;
+}
+
+export interface Listing {
+  id: string;
+  sellerId: string;
+  title: string;
+  description: string;
+  price: number;
+  isNegotiable: boolean;
+  categoryId: string;
+  category?: Category;
+  condition?: ListingCondition | null;
+  locationId: string;
+  location?: Location;
+  quantityAvailable: number;
+  quantityReserved: number;
+  status: ListingStatus;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  photos?: ListingPhoto[];
+}
+
+export interface ModerationRecord {
+  id: string;
+  listingId: string;
+  type: string;
+  result: "clean" | "flagged";
+  flags: string[];
+  reviewedBy?: string | null;
+  createdAt: Date | string;
+}

@@ -80,6 +80,7 @@ Do not create random files or drop scripts into arbitrary locations. Adhere to t
 - Never expose, log, commit, or type secrets, credentials, or connection strings into commands or CLI arguments. Always read secrets from gitignored files or interactive prompts.
 - Preserve the project design system. See [`DESIGN.md`](./DESIGN.md). All styling goes through design tokens and shared components; no hardcoded colors, spacing or one-off styles in pages. A design pass will restyle later.
 - Use available skills and MCPs when they materially improve the task.
+- Temporary debug/maintenance routes are never deployed unauthenticated; if one is unavoidable, gate it behind a secret header and remove it in the same PR.
 
 ---
 

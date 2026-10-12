@@ -16,6 +16,17 @@ import {
   containsUrl,
   CreateLocationSchema,
   LocationAutocompleteQuerySchema,
+  MAX_LISTING_PRICE_NAIRA,
+  ListingStatusEnum,
+  ListingConditionEnum,
+  CATEGORY_CONDITION_RULES,
+  getCategoryConditionRequirement,
+  ALLOWED_LISTING_TRANSITIONS,
+  isAllowedListingTransition,
+  DraftListingSchema,
+  SubmitListingSchema,
+  UpdateListingSchema,
+  isHighRiskListingEdit,
 } from "../index";
 
 describe("Validation: normalizeMatricNumber", () => {
@@ -352,4 +363,237 @@ describe("Validation: Location & Custom Location Guardrails", () => {
     expect(tooLong.success).toBe(false);
   });
 });
+
+describe("Validation: Listing Status & Transitions Table", () => {
+  it("defines the complete set of listing statuses", () => {
+    const validStatuses = [
+      "draft",
+      "pending_moderation",
+      "published",
+      "reserved",
+      "sold",
+      "archived",
+    ];
+    for (const status of validStatuses) {
+      expect(ListingStatusEnum.safeParse(status).success).toBe(true);
+    }
+    expect(ListingStatusEnum.safeParse("unknown_status").success).toBe(false);
+  });
+
+  it("enforces ONLY allowed Step 04 lifecycle transitions", () => {
+    // Identity transitions (same status) are allowed
+    expect(isAllowedListingTransition("draft", "draft")).toBe(true);
+    expect(isAllowedListingTransition("pending_moderation", "pending_moderation")).toBe(true);
+    expect(isAllowedListingTransition("published", "published")).toBe(true);
+
+    // Step 04 allowed forward transitions:
+    // 1. draft -> pending_moderation
+    expect(isAllowedListingTransition("draft", "pending_moderation")).toBe(true);
+    // 2. pending_moderation -> published (when clean)
+    expect(isAllowedListingTransition("pending_moderation", "published")).toBe(true);
+    // 3. published -> pending_moderation (high-risk edit re-check)
+    expect(isAllowedListingTransition("published", "pending_moderation")).toBe(true);
+
+    // Disallowed transitions in Step 04:
+    expect(isAllowedListingTransition("draft", "published")).toBe(false);
+    expect(isAllowedListingTransition("published", "draft")).toBe(false);
+    expect(isAllowedListingTransition("pending_moderation", "draft")).toBe(false);
+    expect(isAllowedListingTransition("published", "sold")).toBe(false); // Step 07/08
+    expect(isAllowedListingTransition("published", "reserved")).toBe(false); // Step 07/08
+    expect(isAllowedListingTransition("sold", "draft")).toBe(false);
+    expect(isAllowedListingTransition("archived", "published")).toBe(false);
+  });
+});
+
+describe("Validation: Category Condition Requirements Configuration", () => {
+  it("maps required categories per specification", () => {
+    const required = [
+      "electronics",
+      "fashion-accessories",
+      "home-living",
+      "books-study-materials",
+      "beauty-personal-care",
+    ];
+    for (const cat of required) {
+      expect(getCategoryConditionRequirement(cat)).toBe("required");
+    }
+  });
+
+  it("maps not_applicable categories per specification", () => {
+    const notApplicable = ["food-drinks", "services", "tickets-events"];
+    for (const cat of notApplicable) {
+      expect(getCategoryConditionRequirement(cat)).toBe("not_applicable");
+    }
+  });
+
+  it("maps optional categories and unknown fallbacks", () => {
+    expect(getCategoryConditionRequirement("other")).toBe("optional");
+    expect(getCategoryConditionRequirement("cat_other")).toBe("optional");
+    expect(getCategoryConditionRequirement("non_existent_category")).toBe("optional");
+  });
+});
+
+describe("Validation: DraftListingSchema", () => {
+  it("allows saving a partial draft with defaults", () => {
+    const parsed = DraftListingSchema.safeParse({});
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.title).toBe("");
+      expect(parsed.data.description).toBe("");
+      expect(parsed.data.isNegotiable).toBe(false);
+      expect(parsed.data.quantityAvailable).toBe(1);
+      expect(parsed.data.photoIds).toEqual([]);
+    }
+  });
+
+  it("accepts valid partial draft fields", () => {
+    const parsed = DraftListingSchema.safeParse({
+      title: "Used Engineering Textbook",
+      price: 4500,
+      isNegotiable: true,
+      categoryId: "cat_books_study_materials",
+      condition: "good",
+      locationId: "loc_campus_osogbo",
+      quantityAvailable: 2,
+      photoIds: ["photo_1", "photo_2"],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("enforces price bounds on draft if provided", () => {
+    expect(DraftListingSchema.safeParse({ price: -100 }).success).toBe(false);
+    expect(DraftListingSchema.safeParse({ price: 0 }).success).toBe(false);
+    expect(DraftListingSchema.safeParse({ price: 1.5 }).success).toBe(false);
+    expect(DraftListingSchema.safeParse({ price: MAX_LISTING_PRICE_NAIRA + 1 }).success).toBe(false);
+    expect(DraftListingSchema.safeParse({ price: MAX_LISTING_PRICE_NAIRA }).success).toBe(true);
+  });
+
+  it("limits photos to max 5", () => {
+    expect(
+      DraftListingSchema.safeParse({
+        photoIds: ["p1", "p2", "p3", "p4", "p5", "p6"],
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe("Validation: SubmitListingSchema", () => {
+  const validSubmit = {
+    title: "iPhone 11 64GB Clean",
+    description: "Factory unlocked, battery health 84%, comes with original charger.",
+    price: 180000,
+    isNegotiable: false,
+    categoryId: "cat_electronics",
+    condition: "like_new",
+    locationId: "loc_campus_osogbo",
+    quantityAvailable: 1,
+    photoIds: ["photo_front", "photo_back"],
+  };
+
+  it("accepts valid submission", () => {
+    const parsed = SubmitListingSchema.safeParse(validSubmit);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("requires title between 3 and 100 characters", () => {
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, title: "ab" }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, title: "a".repeat(101) }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, title: "   " }).success).toBe(false);
+  });
+
+  it("requires price as whole integer between 1 and MAX_LISTING_PRICE_NAIRA", () => {
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, price: 0 }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, price: -500 }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, price: 49.99 }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, price: MAX_LISTING_PRICE_NAIRA + 1 }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, price: 1 }).success).toBe(true);
+  });
+
+  it("requires category and location", () => {
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, categoryId: "" }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, locationId: "" }).success).toBe(false);
+  });
+
+  it("requires 1 to 5 photos", () => {
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, photoIds: [] }).success).toBe(false);
+    expect(
+      SubmitListingSchema.safeParse({
+        ...validSubmit,
+        photoIds: ["1", "2", "3", "4", "5", "6"],
+      }).success
+    ).toBe(false);
+    expect(
+      SubmitListingSchema.safeParse({
+        ...validSubmit,
+        photoIds: ["1"],
+      }).success
+    ).toBe(true);
+  });
+
+  it("enforces quantityAvailable between 1 and 999", () => {
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, quantityAvailable: 0 }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, quantityAvailable: 1000 }).success).toBe(false);
+    expect(SubmitListingSchema.safeParse({ ...validSubmit, quantityAvailable: 999 }).success).toBe(true);
+  });
+});
+
+describe("Validation: isHighRiskListingEdit", () => {
+  const original = {
+    title: "Calculus Textbook 8th Edition",
+    description: "Good condition, slight highlight on chapter 2",
+    price: 3500,
+    categoryId: "cat_books_study_materials",
+    condition: "good",
+    photoIds: ["photo_1"],
+  };
+
+  it("classifies description and location changes as low risk", () => {
+    expect(
+      isHighRiskListingEdit(original, {
+        description: "New updated description wording",
+      })
+    ).toBe(false);
+  });
+
+  it("flags title edits as high risk", () => {
+    expect(
+      isHighRiskListingEdit(original, {
+        title: "Calculus Textbook 9th Edition",
+      })
+    ).toBe(true);
+  });
+
+  it("flags price edits as high risk", () => {
+    expect(
+      isHighRiskListingEdit(original, {
+        price: 5000,
+      })
+    ).toBe(true);
+  });
+
+  it("flags category edits as high risk", () => {
+    expect(
+      isHighRiskListingEdit(original, {
+        categoryId: "cat_electronics",
+      })
+    ).toBe(true);
+  });
+
+  it("flags condition edits as high risk", () => {
+    expect(
+      isHighRiskListingEdit(original, {
+        condition: "like_new",
+      })
+    ).toBe(true);
+  });
+
+  it("flags photo list changes as high risk", () => {
+    expect(
+      isHighRiskListingEdit(original, {
+        photoIds: ["photo_1", "photo_2"],
+      })
+    ).toBe(true);
+  });
+});
+
 
