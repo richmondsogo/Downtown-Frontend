@@ -1,5 +1,11 @@
-import { pgTable, text, timestamp, boolean, integer, bigint, check, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, bigint, check, index, customType } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
 
 export const user = pgTable(
   "user",
@@ -160,6 +166,7 @@ export const listing = pgTable(
     quantityAvailable: integer("quantity_available").notNull().default(1),
     quantityReserved: integer("quantity_reserved").notNull().default(0),
     status: text("status").notNull().default("draft"),
+    searchVector: tsvector("search_vector"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -172,6 +179,8 @@ export const listing = pgTable(
     index("listing_status_created_at_idx").on(table.status, table.createdAt),
     index("listing_category_idx").on(table.categoryId),
     index("listing_location_idx").on(table.locationId),
+    index("listings_search_vector_idx").using("gin", table.searchVector),
+    index("listings_title_trgm_idx").using("gin", sql`${table.title} gin_trgm_ops`),
   ]
 );
 export const listings = listing;
@@ -189,6 +198,7 @@ export const listingPhoto = pgTable(
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     bytes: integer("bytes").notNull().default(0),
+    isSeed: boolean("is_seed").notNull().default(false),
     position: integer("position").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

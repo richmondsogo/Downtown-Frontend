@@ -34,6 +34,7 @@ describe("Taxonomy & Locations Integration Suite", () => {
       headers: {
         "Content-Type": "application/json",
         Origin: "http://localhost:3000",
+        "x-forwarded-for": `10.88.77.${Math.floor(Math.random() * 200) + 1}`,
       },
       body: JSON.stringify({
         name: "Location Creator",

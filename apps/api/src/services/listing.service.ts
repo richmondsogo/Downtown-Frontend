@@ -489,6 +489,10 @@ export class ListingService {
       const storage = getStorageService();
       const successfullyDeletedPhotoIds: string[] = [];
       for (const p of attachedPhotos) {
+        if (p.isSeed) {
+          successfullyDeletedPhotoIds.push(p.id);
+          continue;
+        }
         try {
           await storage.delete(p.key);
           await storage.delete(p.thumbKey);
@@ -708,21 +712,25 @@ export class ListingService {
       throw new ForbiddenError("You cannot delete a photo that does not belong to you.");
     }
 
-    const storage = getStorageService();
-    try {
-      await storage.delete(existing.key);
-      await storage.delete(existing.thumbKey);
+    if (!existing.isSeed) {
+      const storage = getStorageService();
+      try {
+        await storage.delete(existing.key);
+        await storage.delete(existing.thumbKey);
+        await db.delete(listingPhoto).where(eq(listingPhoto.id, photoId));
+      } catch (err: any) {
+        console.error(
+          `[Storage Error] Failed to delete photo blobs for ${photoId}: ${err instanceof Error ? err.message : String(err)}`
+        );
+        // Ensure photo is detached so sweepOrphanPhotos will retry deleting it later
+        await db
+          .update(listingPhoto)
+          .set({ listingId: null })
+          .where(eq(listingPhoto.id, photoId));
+        throw new ApiError(502, "Storage provider failed to delete image. Photo marked for retry cleanup.");
+      }
+    } else {
       await db.delete(listingPhoto).where(eq(listingPhoto.id, photoId));
-    } catch (err: any) {
-      console.error(
-        `[Storage Error] Failed to delete photo blobs for ${photoId}: ${err instanceof Error ? err.message : String(err)}`
-      );
-      // Ensure photo is detached so sweepOrphanPhotos will retry deleting it later
-      await db
-        .update(listingPhoto)
-        .set({ listingId: null })
-        .where(eq(listingPhoto.id, photoId));
-      throw new ApiError(502, "Storage provider failed to delete image. Photo marked for retry cleanup.");
     }
   }
 
@@ -752,6 +760,10 @@ export class ListingService {
     const idsToDelete: string[] = [];
 
     for (const p of orphans) {
+      if (p.isSeed) {
+        idsToDelete.push(p.id);
+        continue;
+      }
       try {
         await storage.delete(p.key);
         await storage.delete(p.thumbKey);

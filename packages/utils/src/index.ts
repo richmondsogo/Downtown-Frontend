@@ -32,3 +32,35 @@ export function canSell(
   if (!user) return false;
   return user.sellerStatus === "verified";
 }
+
+/**
+ * Formats a privacy-safe public display name for sellers:
+ * - If businessName is present and non-empty, displays the business name.
+ * - Otherwise for individuals, formats as First Name + Last Initial (e.g. "Richmond O.").
+ * - Single-word names remain unchanged (e.g. "Richmond").
+ * - Multi-part names take the first part and the initial of the last part (e.g. "Richmond Osogbo" -> "Richmond O.").
+ * - Trimmed and unicode-safe.
+ */
+export function formatDisplayName(
+  personalName: string,
+  businessName?: string | null
+): string {
+  if (businessName && businessName.trim().length > 0) {
+    return businessName.trim();
+  }
+
+  const trimmed = personalName.trim();
+  if (!trimmed) return "Seller";
+
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return parts[0];
+  }
+
+  const firstName = parts[0];
+  const lastPart = parts[parts.length - 1];
+  const lastInitial = Array.from(lastPart)[0] || "";
+
+  return `${firstName} ${lastInitial.toUpperCase()}.`;
+}
+

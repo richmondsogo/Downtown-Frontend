@@ -7,47 +7,15 @@ import { db, pool } from "./index";
 import { user } from "./schema";
 import { eq } from "drizzle-orm";
 
+import { assertSafeSeedEnvironment } from "./guard-seed";
+
 /**
  * Development-only database seed script.
  * Strict Allowlist Guard: Requires ALLOW_SEED=1 AND host matching a configured dev-branch value.
  * Refuses execution in production or against the production Neon host.
  */
 async function seed() {
-  const nodeEnv = process.env.NODE_ENV || "development";
-  const allowSeed = process.env.ALLOW_SEED;
-  const dbUrl = process.env.DATABASE_URL;
-
-  if (nodeEnv === "production") {
-    console.error("FATAL: Seed script cannot run in production (NODE_ENV=production).");
-    process.exit(1);
-  }
-
-  if (allowSeed !== "1") {
-    console.error("REFUSED: Seed script requires explicit ALLOW_SEED=1 environment variable.");
-    process.exit(1);
-  }
-
-  if (!dbUrl) {
-    console.error("FATAL: DATABASE_URL is not set.");
-    process.exit(1);
-  }
-
-  const parsedUrl = new URL(dbUrl);
-  const host = parsedUrl.hostname;
-
-  // Strict allowlist: Must be dev branch endpoint or local Postgres
-  const allowedDevHosts = [
-    "ep-shiny-credit-baedn5p1-pooler.c-8.eu-central-1.aws.neon.tech",
-    "localhost",
-    "127.0.0.1",
-  ];
-  const prodHost = "ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech";
-
-  if (host === prodHost || !allowedDevHosts.some((h) => host.includes(h))) {
-    console.error(`REFUSED: Database host "${host}" is not on the dev allowlist.`);
-    process.exit(1);
-  }
-
+  const { host } = assertSafeSeedEnvironment();
   console.log(`[SEED] Verified allowlist for host: ${host}`);
 
   try {

@@ -26,8 +26,14 @@ This checklist defines mandatory operational, security, legal, and QA checkpoint
   - Configure monitoring for store usage against the cap; operational upgrade/migrate trigger set at ~70% of 1 GB (~700 MB) to transition to Pro or migrate to Supabase Storage.
   - Verify public URLs and immutable edge cache headers (`cacheControlMaxAge: 31536000`) so CDN hits do not count toward Blob transfer.
 - [x] **Student Areas Reference Data (`docs/data/student-areas.csv`)**:
-  - Curated UNIOSUN student residential areas populated across Osogbo campus.
+  - Curated UNIOSUN student residential areas populated across Osogbo campus (19 rows).
   - Seeded into production PostgreSQL reference data via `scripts/run-prod-migrations.ps1 -Action seed-taxonomy`.
+- [ ] **Founders' Decision: Launch Campuses & Student Areas Coverage**:
+  - *Context*: `docs/data/student-areas.csv` currently only has Osogbo campus student residential areas (19 rows); the other 5 UNIOSUN campuses (Ikire, Okuku, Ifetedo, Ipetu-Ijesha, Ejigbo) currently have zero granular student areas and only campus-level fallback locations.
+  - *Decision Required*: Founders must decide launch scope before public rollout:
+    - **Option 1 (Osogbo Pilot)**: Launch exclusively at Osogbo campus for public MVP; expand to other 5 campuses once campus ambassador leads compile and verify granular hostel clusters.
+    - **Option 2 (All Campuses with Campus-Level Fallbacks)**: Launch all 6 campuses simultaneously; campuses without student areas display campus-level locations (e.g. "Ikire Campus (Campus-wide)") and allow student-submitted custom locations (`POST /api/locations`).
+  - *UI Safeguard*: The web client displays campus-level locations gracefully when a campus has no sub-areas, avoiding broken empty states.
 
 ---
 

@@ -321,7 +321,11 @@ export function LocationSelector({
 
             {!isLoading && results.length === 0 && (
               <div className="py-4 text-center text-xs text-muted-foreground space-y-2">
-                <p>No verified locations found matching &quot;{searchQuery}&quot;</p>
+                <p>
+                  {selectedCampusId && selectedCampusName !== "All Campuses"
+                    ? `No verified hostel sub-areas found for ${selectedCampusName}.`
+                    : `No verified locations found matching "${searchQuery}"`}
+                </p>
                 {onCreateLocation && selectedCampusId && searchQuery.trim().length >= 3 && (
                   <button
                     type="button"
@@ -335,8 +339,17 @@ export function LocationSelector({
               </div>
             )}
 
+            {/* Informative helper when only campus-level location is present */}
+            {selectedCampusId && results.length > 0 && results.every((r) => r.type === "campus") && !searchQuery && (
+              <div className="px-2.5 py-1.5 mx-1 mb-1 rounded bg-muted/70 border border-border text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>Campus-level location available. Specific hostel sub-areas coming soon.</span>
+              </div>
+            )}
+
             {results.map((loc) => {
               const isSelected = selectedLocation?.id === loc.id;
+              const isCampusLevel = loc.type === "campus";
               return (
                 <button
                   key={loc.id}
@@ -354,6 +367,11 @@ export function LocationSelector({
                   <div className="flex items-center gap-2 truncate">
                     <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{loc.name}</span>
+                    {isCampusLevel && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-medium">
+                        Campus-wide
+                      </span>
+                    )}
                     {!loc.isCurated && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
                         Custom
