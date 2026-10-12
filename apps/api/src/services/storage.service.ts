@@ -112,7 +112,8 @@ export class VercelBlobStorageService implements StorageService {
 
   async delete(keyOrUrl: string): Promise<void> {
     const token = this.tokenResolver();
-    await del(keyOrUrl, { token });
+    const targetUrl = this.getPublicUrl(keyOrUrl);
+    await del(targetUrl, { token });
   }
 
   getPublicUrl(keyOrUrl: string): string {
