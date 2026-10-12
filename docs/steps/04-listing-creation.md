@@ -149,11 +149,30 @@ Implement full end-to-end listing creation for verified sellers: contract-first 
   - `apps/api`: `trusted-origins.test.ts` (4 tests passed).
   - `apps/api`: `email-service.test.ts` (4 tests passed).
 
+- **Real-Provider Smoke Test (Vercel Blob `downtown-listings-dev`)**:
+  - Target preview deployment: `https://downtown-8xdf3vm9y-richmondsogo.vercel.app`
+  - Registered verified seller with `.edu.ng` credentials.
+  - Uploaded photo via `POST /api/listings/photos`.
+  - Result:
+    - Status: `PASS`
+    - Host: `ify7na5r52nw5uuz.public.blob.vercel-storage.com`
+    - Stored display bytes: `88`, fetched bytes from CDN: `44`
+    - Public CDN returned HTTP 200 with proper `image/webp` payload.
+  - Executed `DELETE /api/listings/photos/:id`. Verified `del()` deleted both display and thumbnail variants from Vercel Blob.
+  - Dev store inspection via `vercel storage inspect downtown-listings-dev`:
+    - `Store`: `downtown-listings-dev`
+    - `ID`: `store_iFY7NA5r52NW5UuZ`
+    - `Region`: `fra1`
+    - `Size`: `0`
+    - `Count`: `0`
+    - Store is 100% empty and clean.
+
 ## Decisions
 
 - **ADR 0007 (Amended)**: Vercel Blob Hobby tier adopted for listing images; Cloudflare R2 dropped due to billing and overage risks; Supabase Storage recorded as architectural fallback.
 - **Fail-Closed Token Resolution**: `getBlobToken()` strictly enforces `BLOB_READ_WRITE_TOKEN` when `VERCEL_ENV === "production"`, failing closed with a clear error if unset. Under preview and development, it resolves `DEV_READ_WRITE_TOKEN`.
 - **Environment Isolation via CLI**: All three `DEV_*` variables (`DEV_READ_WRITE_TOKEN`, `DEV_STORE_ID`, `DEV_WEBHOOK_PUBLIC_KEY`) were removed from the `production` environment via Vercel CLI, and the store connection was scoped strictly to `preview` (`vercel storage update downtown-listings-dev --environment preview --yes`).
-- **Preview Deployment Smoke Test**: In accordance with user instruction, `DEV_READ_WRITE_TOKEN` remains marked sensitive with zero local disclosure. Real-provider smoke verification is performed directly against the Step 04 Preview deployment UI.
+- **Preview Deployment Smoke Test**: In accordance with user instruction, `DEV_READ_WRITE_TOKEN` remains marked sensitive with zero local disclosure. Real-provider smoke verification was performed directly against the Step 04 Preview deployment API, followed by verification that the store is completely empty (`Count: 0`).
+
 
 
