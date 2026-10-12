@@ -224,10 +224,29 @@ export async function loadStudentAreasFromCsv(): Promise<Array<{
     return [];
   }
 
+  function parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
   const records: Array<{ campusSlug: string; name: string; slug: string; description?: string }> = [];
   // Skip header line
   for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split(",").map((p) => p.trim());
+    const parts = parseCsvLine(lines[i]);
     if (parts.length >= 3 && parts[0] && parts[1] && parts[2]) {
       records.push({
         campusSlug: parts[0],
