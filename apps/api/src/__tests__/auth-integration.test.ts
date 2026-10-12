@@ -195,7 +195,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.6.${uniqueId.slice(-2)}`,
+        "x-forwarded-for": `10.10.8.${Math.floor(Math.random() * 200) + 1}`,
       },
       body: JSON.stringify({
         role: "student",

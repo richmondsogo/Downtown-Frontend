@@ -168,3 +168,61 @@ export interface ModerationRecord {
   reviewedBy?: string | null;
   createdAt: Date | string;
 }
+
+export type ListingAvailability = "available" | "reserved" | "sold";
+
+export interface PublicListingSeller {
+  displayName: string;
+  isVerified: boolean;
+}
+
+export interface PublicListingThumb {
+  url: string;
+  width: number;
+  height: number;
+}
+
+export interface PublicListingCard {
+  id: string;
+  title: string;
+  price: number;
+  isNegotiable: boolean;
+  condition?: ListingCondition | null;
+  thumb: PublicListingThumb | null;
+  locationName: string;
+  campusName: string;
+  campusSlug: string;
+  seller: PublicListingSeller;
+  availability: ListingAvailability;
+  status: ListingStatus;
+  createdAt: string;
+}
+
+export type SearchSortOption = "relevance" | "newest" | "price_asc" | "price_desc";
+export type SearchAvailabilityFilter = "all" | "in_stock";
+
+export interface SearchQuery {
+  q?: string;
+  categoryId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  condition?: ListingCondition[];
+  locationId?: string;
+  campusId?: string;
+  verifiedOnly?: boolean;
+  availability?: SearchAvailabilityFilter;
+  sort?: SearchSortOption;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface SearchResultPage {
+  items: PublicListingCard[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface SearchSuggestion {
+  title: string;
+}
+

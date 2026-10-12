@@ -416,3 +416,82 @@ export function isHighRiskListingEdit(
   return false;
 }
 
+export const SearchSortOptionEnum = z.enum([
+  "relevance",
+  "newest",
+  "price_asc",
+  "price_desc",
+]);
+export type SearchSortOption = z.infer<typeof SearchSortOptionEnum>;
+
+export const SearchAvailabilityFilterEnum = z.enum(["all", "in_stock"]);
+export type SearchAvailabilityFilter = z.infer<typeof SearchAvailabilityFilterEnum>;
+
+export const SearchQuerySchema = z.object({
+  q: z.string().trim().max(80, "Search query cannot exceed 80 characters").optional(),
+  categoryId: z.string().trim().min(1).optional(),
+  minPrice: z.coerce.number().int().min(0, "Minimum price must be non-negative").max(MAX_LISTING_PRICE_NAIRA).optional(),
+  maxPrice: z.coerce.number().int().min(0).max(MAX_LISTING_PRICE_NAIRA).optional(),
+  condition: z
+    .union([
+      ListingConditionEnum,
+      z.array(ListingConditionEnum),
+      z.string().transform((v) => v.split(",").map((s) => s.trim())),
+    ])
+    .optional()
+    .transform((val) => {
+      if (!val) return undefined;
+      const arr = Array.isArray(val) ? val : [val];
+      return arr.filter((c): c is ListingCondition => ["new", "like_new", "good", "fair"].includes(c));
+    }),
+  locationId: z.string().trim().min(1).optional(),
+  campusId: z.string().trim().min(1).optional(),
+  verifiedOnly: z
+    .union([z.boolean(), z.string().transform((v) => v === "true" || v === "1")])
+    .optional(),
+  availability: z.enum(["all", "in_stock"]).default("all"),
+  sort: z.enum(["relevance", "newest", "price_asc", "price_desc"]).default("relevance"),
+  cursor: z.string().trim().optional(),
+  limit: z.coerce.number().int().min(1).max(30).default(20),
+});
+export type SearchQueryInput = z.infer<typeof SearchQuerySchema>;
+
+export const SuggestQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .min(2, "Suggestion query must be at least 2 characters")
+    .max(80, "Query cannot exceed 80 characters"),
+});
+export type SuggestQueryInput = z.infer<typeof SuggestQuerySchema>;
+
+/**
+ * Canonical lifecycle eligibility function for marketplace discovery.
+ * - published: discoverable in home feed, category browsing, and search.
+ * - reserved: discoverable in home feed, category browsing, and search; ranked below published.
+ * - sold: discoverable ONLY when an explicit keyword is present (isSearchQuery = true) AND availability filter != "in_stock".
+ * - draft, pending_moderation, archived: NEVER discoverable under any circumstance.
+ */
+export function isListingDiscoverable(
+  status: string,
+  isSearchQuery: boolean = false,
+  availabilityFilter: string = "all"
+): boolean {
+  if (status === "draft" || status === "pending_moderation" || status === "archived") {
+    return false;
+  }
+  if (status === "published") {
+    return true;
+  }
+  if (status === "reserved") {
+    return true;
+  }
+  if (status === "sold") {
+    if (!isSearchQuery) return false;
+    if (availabilityFilter === "in_stock" || availabilityFilter === "available") return false;
+    return true;
+  }
+  return false;
+}
+
+

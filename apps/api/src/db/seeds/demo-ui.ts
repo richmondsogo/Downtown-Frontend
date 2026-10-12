@@ -2,6 +2,7 @@ import { db } from "../index";
 import { user, listing, listingPhoto } from "../schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../../services/auth.service";
+import { assertSafeSeedEnvironment } from "../guard-seed";
 
 async function createOrUpdateUser(email: string, sellerStatus: "verified" | "not_a_seller") {
   let [existing] = await db.select().from(user).where(eq(user.email, email)).limit(1);
@@ -36,6 +37,7 @@ async function createOrUpdateUser(email: string, sellerStatus: "verified" | "not
 }
 
 async function main() {
+  assertSafeSeedEnvironment();
   console.log("Seeding demo UI users...");
   const nonSeller = await createOrUpdateUser("nonseller_demo@example.com", "not_a_seller");
   const sellerDemo = await createOrUpdateUser("seller_demo@example.com", "verified");

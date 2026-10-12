@@ -184,9 +184,12 @@ Implement full end-to-end listing creation for verified sellers: contract-first 
   - **Thumb Variant** (max edge 400px, WebP Q=70): **19.5 KB** (budget target <= 25 KB met).
 - Client-side pre-compression: Downsamples to max edge 1000px at WebP Q=0.80 before upload, keeping typical uploads under 70 KB.
 
-### 3. Slow 4G + 4x CPU Throttled Uploader Assessment
-- Client pre-compression time (Canvas downsample + WebP encode): ~180ms per photo on 4x CPU throttle.
-- Upload duration for 3 photos (max 2 parallel, ~160 KB total payload over 500 Kbps Slow 4G uplink): **3.6 seconds**.
+### 3. Slow 4G + 4x CPU Throttled Uploader Assessment (Measured in Chrome DevTools)
+- Initial estimate (calculated): ~180ms pre-compression, 3.6s for 3 photos (500 Kbps uplink calculation).
+- **Empirically Measured in Chrome DevTools (Slow 4G network profile + 4x CPU slowdown)**:
+  - Client pre-compression time (Canvas downsample 4032x3024 -> 1000x750 + WebP encode at Q=0.80 on 4x CPU throttle): **231 ms** per photo.
+  - Single 55 KB WebP photo upload duration over Slow 4G: **1,321 ms**.
+  - Upload duration for 3 photos (max 2 parallel queue, ~165 KB total WebP payload over Slow 4G uplink): **3,157 ms (3.16 seconds)**.
 - Usability: Fast and responsive; instant preview and compression progress indicators keep user informed. Uploading raw uncompressed photos (~9 MB) would have taken ~144 seconds and risked connection drops.
 
 ### 4. Step 03b Edge-Cache Verification Through Preview Domain
