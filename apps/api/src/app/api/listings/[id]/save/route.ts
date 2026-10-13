@@ -10,7 +10,10 @@ interface RouteParams {
 /**
  * POST /api/listings/:id/save
  *
- * Authenticated toggle for saving / unsaving a listing.
+ * Authenticated idempotent save / unsave handler.
+ * Accepts optional JSON body: { saved?: boolean }.
+ * If `saved` is specified, idempotently sets the saved status.
+ * If omitted, safely toggles current state.
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
@@ -18,7 +21,19 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const auth = await authorizeUser(req, { requireCanSell: false });
     if (auth.errorResponse) return auth.errorResponse;
 
-    const result = await savedService.toggleSave(auth.user.id, id);
+    let targetState: boolean | undefined = undefined;
+    try {
+      const body = await req.json();
+      if (typeof body?.saved === "boolean") {
+        targetState = body.saved;
+      }
+    } catch {
+      // Body is optional
+    }
+
+    const result = targetState !== undefined
+      ? await savedService.setSavedStatus(auth.user.id, id, targetState)
+      : await savedService.toggleSave(auth.user.id, id);
 
     return NextResponse.json(result, {
       status: 200,
@@ -30,7 +45,61 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     if (error instanceof ApiError) {
       return NextResponse.json({ message: error.message }, { status: error.statusCode });
     }
-    console.error("Failed to toggle save on listing:", error);
+    console.error("Failed to save listing:", error);
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+  }
+}
+
+/**
+ * PUT /api/listings/:id/save
+ * Idempotently saves the listing.
+ */
+export async function PUT(req: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const auth = await authorizeUser(req, { requireCanSell: false });
+    if (auth.errorResponse) return auth.errorResponse;
+
+    const result = await savedService.setSavedStatus(auth.user.id, id, true);
+
+    return NextResponse.json(result, {
+      status: 200,
+      headers: {
+        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+      },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ message: error.message }, { status: error.statusCode });
+    }
+    console.error("Failed to save listing:", error);
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/listings/:id/save
+ * Idempotently unsaves the listing.
+ */
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const auth = await authorizeUser(req, { requireCanSell: false });
+    if (auth.errorResponse) return auth.errorResponse;
+
+    const result = await savedService.setSavedStatus(auth.user.id, id, false);
+
+    return NextResponse.json(result, {
+      status: 200,
+      headers: {
+        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+      },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ message: error.message }, { status: error.statusCode });
+    }
+    console.error("Failed to unsave listing:", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

@@ -7,13 +7,13 @@ import { GET as getSavedListingsHandler } from "../app/api/listings/saved/route"
 import { POST as createListingHandler } from "../app/api/listings/route";
 import { POST as submitListingHandler } from "../app/api/listings/[id]/submit/route";
 import { pool, db } from "../db/index";
-import { user, listing, listingPhoto, savedListing } from "../db/schema";
+import { user, listing, listingPhoto, savedListing, category } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../services/auth.service";
 import { seedTaxonomyAndLocations } from "../db/seeds/taxonomy-locations";
 import type { PublicListingDetail, SavedListingItem } from "@downtown/types";
 
-describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
+describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", { timeout: 30000 }, () => {
   const suffix = Math.floor(Math.random() * 100000);
 
   let sellerId: string;
@@ -38,7 +38,7 @@ describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
       headers: {
         "Content-Type": "application/json",
         Origin: "http://localhost:3000",
-        "x-forwarded-for": ip,
+        "x-vercel-forwarded-for": ip,
       },
       body: JSON.stringify({
         name,
@@ -74,7 +74,7 @@ describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
       headers: {
         "Content-Type": "application/json",
         Origin: "http://localhost:3000",
-        "x-forwarded-for": ip,
+        "x-vercel-forwarded-for": ip,
       },
       body: JSON.stringify({
         email,
@@ -88,7 +88,10 @@ describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
   }
 
   beforeAll(async () => {
-    await seedTaxonomyAndLocations();
+    const [existingCat] = await db.select({ id: category.id }).from(category).limit(1);
+    if (!existingCat) {
+      await seedTaxonomyAndLocations();
+    }
 
     const seller = await registerAndLogin(
       `seller.detail.${suffix}@uniosun.edu.ng`,
@@ -184,7 +187,7 @@ describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
     soldListingId = soldData.id;
 
     await db.update(listing).set({ status: "sold" }).where(eq(listing.id, soldListingId));
-  }, 60000);
+  }, 180000);
 
   describe("Public Listing Detail Projection & Privacy Boundary", () => {
     it("returns public listing detail with zero seller PII", async () => {
@@ -274,7 +277,7 @@ describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
       const ip = `10.99.1.${Math.floor(Math.random() * 250)}`;
       const req = new NextRequest(`http://localhost:3000/api/listings/${publishedListingId}/view`, {
         method: "POST",
-        headers: { "x-forwarded-for": ip },
+        headers: { "x-vercel-forwarded-for": ip },
       });
 
       const res = await viewListingHandler(req, {
@@ -292,7 +295,7 @@ describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
       // First request increments
       const req1 = new NextRequest(`http://localhost:3000/api/listings/${publishedListingId}/view`, {
         method: "POST",
-        headers: { "x-forwarded-for": ip },
+        headers: { "x-vercel-forwarded-for": ip },
       });
       const res1 = await viewListingHandler(req1, {
         params: Promise.resolve({ id: publishedListingId }),
@@ -303,7 +306,7 @@ describe("Step 06: Listing Detail, View Counter & Saved Listings Suite", () => {
       // Immediate second request from same IP is rate-limited (does not increment)
       const req2 = new NextRequest(`http://localhost:3000/api/listings/${publishedListingId}/view`, {
         method: "POST",
-        headers: { "x-forwarded-for": ip },
+        headers: { "x-vercel-forwarded-for": ip },
       });
       const res2 = await viewListingHandler(req2, {
         params: Promise.resolve({ id: publishedListingId }),

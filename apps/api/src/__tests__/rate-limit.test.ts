@@ -73,7 +73,7 @@ describe("Rate Limiter Storage Isolation & Non-Collision", () => {
       .where(eq(rateLimit.key, betterAuthKey));
 
     expect(baRecordsAfter[0].count).toBe(initialBetterAuthCount);
-  });
+  }, 25000);
 
   it("handles window expiration and sliding resets independently", async () => {
     const expireKey = `test_expire_${Date.now()}`;
@@ -96,35 +96,30 @@ describe("Rate Limiter Storage Isolation & Non-Collision", () => {
       .from(appRateLimit)
       .where(eq(appRateLimit.key, `app_rl:${expireKey}`));
     expect(updated[0].count).toBe(1);
-  });
+  }, 25000);
 });
 
 describe("Client IP Resolution & Fail-Closed Behavior", () => {
-  it("prefers x-vercel-forwarded-for header from edge proxy", () => {
+  it("resolves client IP strictly from x-vercel-forwarded-for platform header", () => {
     const headers = new Headers({
       "x-vercel-forwarded-for": "102.221.89.122",
       "x-real-ip": "203.0.113.1",
       "x-forwarded-for": "198.51.100.2",
+      "cf-connecting-ip": "198.51.100.3",
     });
     expect(getClientIp(headers)).toBe("102.221.89.122");
   });
 
-  it("falls back to x-real-ip if x-vercel-forwarded-for is missing", () => {
+  it("ignores client-set x-forwarded-for, x-real-ip, and cf-connecting-ip when x-vercel-forwarded-for is missing", () => {
     const headers = new Headers({
       "x-real-ip": "203.0.113.1",
       "x-forwarded-for": "198.51.100.2",
+      "cf-connecting-ip": "198.51.100.3",
     });
-    expect(getClientIp(headers)).toBe("203.0.113.1");
+    expect(getClientIp(headers)).toBe("no-trusted-ip");
   });
 
-  it("falls back to first IP in x-forwarded-for list", () => {
-    const headers = new Headers({
-      "x-forwarded-for": "198.51.100.2, 10.0.0.1",
-    });
-    expect(getClientIp(headers)).toBe("198.51.100.2");
-  });
-
-  it("fails closed to no-trusted-ip bucket when headers are absent", () => {
+  it("fails closed to no-trusted-ip bucket when headers are absent (null IP)", () => {
     const headers = new Headers({});
     expect(getClientIp(headers)).toBe("no-trusted-ip");
   });

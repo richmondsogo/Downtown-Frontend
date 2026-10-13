@@ -12,9 +12,13 @@ When instructions conflict, resolve them in this order:
 
 1. **User instructions** in the active prompt (highest priority).
 2. **`AGENTS.md` & `BUILD_PROTOCOL.md`** (Repository operating agreements).
-3. **`CONTEXT.md` & `DESIGN.md`** (Domain constraints and design rules).
-4. **Project-local skills** (`.agents/skills/`).
-5. **Environment skills & general defaults** (lowest priority).
+3. **`docs/invariants.md`** (System, architectural, and security invariants).
+4. **`CONTEXT.md` & `DESIGN.md`** (Domain constraints and design rules).
+5. **Project-local skills** (`.agents/skills/`).
+6. **Environment skills & general defaults** (lowest priority).
+
+> [!IMPORTANT]
+> **Read `docs/invariants.md` at the start of every conversation.** Non-negotiable architectural and domain constraints must never be contradicted or bypassed.
 
 ---
 
@@ -52,6 +56,7 @@ Do not create random files or drop scripts into arbitrary locations. Adhere to t
 ## Before you implement anything
 
 1. **Read the relevant documentation:**
+   - [`docs/invariants.md`](./docs/invariants.md) — system, security, and architectural invariants (read at start of every conversation).
    - [`CONTEXT.md`](./CONTEXT.md) — project domain, constraints, non-goals.
    - [`DESIGN.md`](./DESIGN.md) — design principles and visual rules.
    - [`docs/steps/`](./docs/steps/) — prior step logs.
@@ -107,6 +112,7 @@ Actual verification is required. Saying something works is not evidence it works
 |---|---|
 | [`AGENTS.md`](./AGENTS.md) | Agent working agreement, rules, and resource index |
 | [`BUILD_PROTOCOL.md`](./BUILD_PROTOCOL.md) | 10-stage development methodology & branching/PR strategy |
+| [`docs/invariants.md`](./docs/invariants.md) | Non-negotiable architectural, security, and data invariants |
 | [`CONTEXT.md`](./CONTEXT.md) | Authoritative source of project domain, users, constraints, and non-goals |
 | [`DESIGN.md`](./DESIGN.md) | Design principles, typography, spacing, color, and visual rules |
 | [`README.md`](./README.md) | Project overview, human orientation, and bootstrap guide |

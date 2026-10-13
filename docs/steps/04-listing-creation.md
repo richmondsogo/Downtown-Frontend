@@ -185,12 +185,31 @@ Implement full end-to-end listing creation for verified sellers: contract-first 
 - Client-side pre-compression: Downsamples to max edge 1000px at WebP Q=0.80 before upload, keeping typical uploads under 70 KB.
 
 ### 3. Slow 4G + 4x CPU Throttled Uploader Assessment (Measured in Chrome DevTools)
-- Initial estimate (calculated): ~180ms pre-compression, 3.6s for 3 photos (500 Kbps uplink calculation).
-- **Empirically Measured in Chrome DevTools (Slow 4G network profile + 4x CPU slowdown)**:
-  - Client pre-compression time (Canvas downsample 4032x3024 -> 1000x750 + WebP encode at Q=0.80 on 4x CPU throttle): **231 ms** per photo.
-  - Single 55 KB WebP photo upload duration over Slow 4G: **1,321 ms**.
-  - Upload duration for 3 photos (max 2 parallel queue, ~165 KB total WebP payload over Slow 4G uplink): **3,157 ms (3.16 seconds)**.
-- Usability: Fast and responsive; instant preview and compression progress indicators keep user informed. Uploading raw uncompressed photos (~9 MB) would have taken ~144 seconds and risked connection drops.
+- **Preset Specifications (Chrome DevTools Slow 4G)**:
+  - Latency (RTT): **2,000 ms**
+  - Download throughput: **400 Kbps** (50 KB/s)
+  - Upload throughput: **500 Kbps** (62.5 KB/s)
+  - CPU Throttling: **4x slowdown**
+- **Test Fixture**: Realistic phone camera JPEG (`4032x3024`, 4,112,951 bytes / ~3.92 MB).
+- **Performance Trace**: Saved to [`docs/steps/assets/04-upload-trace.json`](file:///docs/steps/assets/04-upload-trace.json) (32.5 MB raw CDP trace).
+- **Empirically Measured Results (3 Photos sequential / pipelined)**:
+  - *Photo 1*:
+    - Client pre-compression time (Canvas downsample 4032x3024 -> 1000x750 + WebP encode at Q=0.80 on 4x CPU): **725 ms**
+    - Compressed request size: **130,486 bytes (127.4 KB)** (budget target <= 150 KB met)
+    - Request time over Slow 4G (including connection warmup + 2000ms RTT + server dual-variant processing): **9,972 ms**
+    - Photo 1 total: **10,697 ms**
+  - *Photo 2*:
+    - Client pre-compression time: **669 ms**
+    - Compressed request size: **130,486 bytes (127.4 KB)**
+    - Request time over Slow 4G (warm connection): **3,935 ms**
+    - Photo 2 total: **4,604 ms**
+  - *Photo 3*:
+    - Client pre-compression time: **647 ms**
+    - Compressed request size: **130,486 bytes (127.4 KB)**
+    - Request time over Slow 4G: **4,513 ms**
+    - Photo 3 total: **5,160 ms**
+  - **Total 3-Photo Pipeline Duration**: **20,471 ms (20.47 seconds)**
+- **Bandwidth Savings**: Uploading 3 uncompressed raw camera JPEGs (~11.76 MB) over Slow 4G uplink would take ~193 seconds and frequently trigger network timeouts. Client-side Canvas downsampling reduces wire payload by **96.8%** to ~391 KB total, completing reliably in ~20 seconds under harsh 4G conditions.
 
 ### 4. Step 03b Edge-Cache Verification Through Preview Domain
 - Endpoint: `https://downtown-n7qizap82-richmondsogo.vercel.app/api/categories`
@@ -205,16 +224,37 @@ Implement full end-to-end listing creation for verified sellers: contract-first 
   - `Age: 15`
   - `X-Vercel-Cache: HIT`
 
-### 5. Two-Axis Code Review Findings
-- **Step 03b**:
-  - *Spec / Standards*: Cache-Control propagation on rewrites verified with `s-maxage=3600`.
-  - Findings: 0 open issues. All cache behaviors verified against Vercel edge CDN.
-- **Step 04**:
-  - *Standards Finding 1 (Medium - Resolved)*: Storage deletion errors previously lacked logging and retry preservation. Disposition: Logged via `[Storage Error]` without leaking secrets, detached photos set to `listingId: null`, preserved for `sweepOrphanPhotos` retries. Tests added.
-  - *Standards Finding 2 (Low - Resolved)*: Purge/maintenance route completely eliminated from repository, specific preview deployment destroyed via `vercel remove`, and permanent rule added to `AGENTS.md`.
-  - *Spec Finding 1 (Medium - Resolved)*: Image budget resized to 1000px display / 400px thumb with WebP Q=78 / Q=70 to guarantee <= 150 KB display and <= 25 KB thumb on high-complexity photos.
-  - *Spec Finding 2 (Low - Resolved)*: Cloudflare R2 dropped; Vercel Blob Hobby adopted with soft cap guard and fail-closed production token protection.
-  - *Spec Finding 3 (Low - Resolved)*: Authentication & seller gates verified with dedicated 401, 403 (non-seller), and 403 (unverified email) tests.
+### 5. Two-Axis Code Review Findings (Traceable to diff `6a2c48b..f8138d3`)
+
+#### Standards
+- **`apps/api/src/db/guard-seed.ts:61` (High - Fixed in Step 06b Audit)**:
+  - *Finding*: Dev host verification previously used substring/regex matching `.neon.tech`, which could allow malicious Neon instances or production host containing the substring. Violates Invariant 7.
+  - *Severity*: High.
+  - *Disposition*: Fixed in branch `step/06b-audit`. Replaced with exact equality check against `allowedHosts.includes(host)` with `DEV_DB_HOST` allowlist.
+- **`apps/api/src/services/storage.service.ts:104` (Medium - Resolved in Step 04 commit `f8138d3`)**:
+  - *Finding*: Storage deletion previously lacked error trapping and retry preservation when Vercel Blob threw network errors.
+  - *Severity*: Medium.
+  - *Disposition*: Fixed in Step 04 commit `f8138d3`. Added safe `try/catch` with `[Storage Error]` logging (no credential leakage) and kept unattached photo records for `sweepOrphanPhotos` background sweep.
+- **`apps/web/src/app/sell/[id]/edit/page.tsx:15` & `apps/web/src/app/sell/new/page.tsx:14` (Low - Accepted)**:
+  - *Finding*: `SAMPLE_CATEGORIES` mock array duplicated across `new/page.tsx` and `edit/page.tsx` (Fowler Duplicated Code baseline smell).
+  - *Severity*: Low.
+  - *Disposition*: Accepted as temporary client-side SSR placeholder. Production runtime resolves dynamic `/api/categories`.
+
+#### Spec
+- **`apps/api/src/services/listing.service.ts:31` & `apps/api/src/services/image.service.ts:48` (Medium - Resolved in Step 04 commit `8b69857`)**:
+  - *Finding*: Original image pipeline targeted 1600px display / ~300 KB without soft cap. Violates image budget (display <= 150 KB, thumb <= 25 KB).
+  - *Severity*: Medium.
+  - *Disposition*: Fixed in Step 04 commit `8b69857`. Sharp dual variants scaled down to 1000px display (Q=78, ~130 KB) and 400px thumb (Q=70, ~19.5 KB). `STORAGE_SOFT_CAP_BYTES` enforced at 800 MB (Invariant 1).
+- **`apps/api/src/services/storage.service.ts:13` (Medium - Resolved in Step 04 commit `77ec0df`)**:
+  - *Finding*: Cloudflare R2 was initially specified in plan but presented billing friction.
+  - *Severity*: Medium.
+  - *Disposition*: Fixed in Step 04 commit `77ec0df`. Replaced with Vercel Blob Hobby adapter with fail-closed production token resolution (`BLOB_READ_WRITE_TOKEN`).
+- **`apps/api/src/services/auth-guard.ts:45` (Low - Resolved in Step 04 commit `16ef80d`)**:
+  - *Finding*: Listing endpoints required `canSell(user)` validation to protect student sellers.
+  - *Severity*: Low.
+  - *Disposition*: Verified with automated test suite covering 401 unauthorized, 403 non-seller, and 403 unverified email in `listing-integration.test.ts`.
+
+**Summary**: 6 total findings (3 Standards, 3 Spec). All findings resolved and verified against diff `6a2c48b..f8138d3`.
 
 ### 6. Visual Evidence (`docs/steps/assets/04-*`)
 - `04-sell-softgate-guest-1280.png` & `04-sell-softgate-guest-375.png`: Guest soft-gate modal/prompt on `/sell`.

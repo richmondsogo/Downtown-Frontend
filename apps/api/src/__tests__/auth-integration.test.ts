@@ -16,7 +16,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.1.${uniqueId.slice(-2)}`,
+        "x-vercel-forwarded-for": `10.10.1.${uniqueId.slice(-2)}`,
       },
       body: JSON.stringify({
         role: "student",
@@ -53,7 +53,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.2.${uniqueId.slice(-2)}`,
+        "x-vercel-forwarded-for": `10.10.2.${uniqueId.slice(-2)}`,
       },
       body: JSON.stringify({
         role: "staff",
@@ -75,7 +75,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.3.${uniqueId.slice(-2)}`,
+        "x-vercel-forwarded-for": `10.10.3.${uniqueId.slice(-2)}`,
       },
       body: JSON.stringify({
         role: "vendor",
@@ -97,7 +97,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.4.${uniqueId.slice(-2)}`,
+        "x-vercel-forwarded-for": `10.10.4.${uniqueId.slice(-2)}`,
       },
       body: JSON.stringify({
         role: "admin",
@@ -138,7 +138,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.5.${uniqueId.slice(-2)}`,
+        "x-vercel-forwarded-for": `10.10.5.${uniqueId.slice(-2)}`,
       },
       body: JSON.stringify({
         role: "student",
@@ -173,7 +173,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.5.99`,
+        "x-vercel-forwarded-for": `10.10.5.99`,
       },
       body: JSON.stringify({
         role: "student",
@@ -195,7 +195,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-forwarded-for": `10.10.8.${Math.floor(Math.random() * 200) + 1}`,
+        "x-vercel-forwarded-for": `10.10.8.${Math.floor(Math.random() * 200) + 1}`,
       },
       body: JSON.stringify({
         role: "student",
@@ -220,7 +220,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-forwarded-for": "192.168.100.1",
+          "x-vercel-forwarded-for": "192.168.100.1",
         },
         body: JSON.stringify({
           email: testStudentEmail,
@@ -235,7 +235,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-forwarded-for": "192.168.100.2",
+          "x-vercel-forwarded-for": "192.168.100.2",
         },
         body: JSON.stringify({
           email: `nonexistent_${uniqueId}@example.com`,
@@ -255,7 +255,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-forwarded-for": "192.168.101.1",
+          "x-vercel-forwarded-for": "192.168.101.1",
         },
         body: JSON.stringify({
           email: testStudentEmail,
@@ -269,7 +269,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-forwarded-for": "192.168.101.2",
+          "x-vercel-forwarded-for": "192.168.101.2",
         },
         body: JSON.stringify({
           email: `completely_random_${uniqueId}@example.com`,
@@ -298,7 +298,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-forwarded-for": ipA,
+            "x-vercel-forwarded-for": ipA,
           },
           body: JSON.stringify({
             email: `ratelimit_${i}@example.com`,
@@ -319,7 +319,7 @@ describe("Better Auth & Security Integration Tests", { timeout: 25000 }, () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-forwarded-for": ipB,
+          "x-vercel-forwarded-for": ipB,
         },
         body: JSON.stringify({
           email: "ipb_test@example.com",

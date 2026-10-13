@@ -79,33 +79,34 @@ Solidify edge caching topology by dynamically resolving matching preview API dep
 Diff inspected: `072b1ea..19ae009` (44 files, +4106 / -121).
 
 ### Standards
-- **Smell: Primitive Obsession / Shared Storage (`rate-limit.service.ts`)**:
-  - *Finding*: Custom rate limits shared the Better Auth `rate_limit` table without distinct namespace prefixing.
+- **`apps/api/src/services/rate-limit.service.ts:25` (Medium - Fixed in Step 06b Audit)**:
+  - *Finding*: `getClientIp` previously included fallback logic inspecting `x-forwarded-for` and `x-real-ip`. Violates Invariant 2 (platform header `x-vercel-forwarded-for` only).
+  - *Severity*: Medium.
+  - *Disposition*: Fixed in branch `step/06b-audit`. Replaced fallback chain with strict `x-vercel-forwarded-for` extraction and fail-closed `"no-trusted-ip"` bucket.
+- **`apps/web/src/components/location-selector.tsx:346` (Low - Fixed in Step 06b Audit)**:
+  - *Finding*: Helper text had `"Campus-level location available. Specific hostel sub-areas coming soon."` making a promise about future availability.
+  - *Severity*: Low.
+  - *Disposition*: Fixed in branch `step/06b-audit`. Replaced with neutral copy `"No sub-areas listed for this campus yet."` per Invariant 9.
+- **`apps/api/src/services/rate-limit.service.ts:16` (Medium - Resolved in Step 03b commit `5979bb9`)**:
+  - *Finding*: Custom rate limits previously shared the Better Auth `rate_limit` table without distinct namespace prefixing.
   - *Severity*: Medium.
   - *Disposition*: Fixed in Step 03b. Created dedicated `app_rate_limit` table and enforced `app_rl:` namespace prefix with atomic upsert.
-- **Smell: Local Interface Duplication (`apps/web/src/components/location-selector.tsx`)**:
-  - *Finding*: `LocationItem` and `CampusItem` declared locally rather than shared.
-  - *Severity*: Low.
-  - *Disposition*: Retained as component prop interfaces matching standard React component encapsulation.
-- **Hard Standard: Design Tokens (`DESIGN.md`)**:
-  - *Finding*: All buttons and dropdowns adhere to CSS variables (`bg-muted`, `border-border`, `text-foreground`, touch target >= 44px).
-  - *Severity*: None (Pass).
 
 ### Spec
-- **Spec: Autocomplete Coupling & Edge Caching Impairment (`route.ts`)**:
-  - *Finding*: Step 03 inspected user sessions in `autocomplete/route.ts`, resulting in `private, no-cache` headers for logged-in users and preventing optimal edge caching.
+- **`apps/api/src/app/api/locations/autocomplete/route.ts:25` (Medium - Resolved in Step 03b commit `0e48ee0`)**:
+  - *Finding*: Autocomplete previously inspected user sessions in `autocomplete/route.ts`, preventing optimal edge caching for logged-in users.
   - *Severity*: Medium.
   - *Disposition*: Fixed in Step 03b. Decoupled into public edge-cacheable `autocomplete` and authenticated private `locations/mine`.
-- **Spec: Missing IP Rate Limiting on Public Autocomplete**:
-  - *Finding*: Public autocomplete queries were not rate-limited per client IP.
+- **`apps/api/src/app/api/locations/autocomplete/route.ts:18` (Medium - Resolved in Step 03b commit `0e48ee0`)**:
+  - *Finding*: Public autocomplete queries previously lacked sliding-window IP rate limiting.
   - *Severity*: Medium.
   - *Disposition*: Fixed in Step 03b. Added 60 req/min sliding window rate limit per client IP with fail-closed fallback.
-- **Spec: Preview Web Routing to Matching Preview API**:
+- **`apps/web/next.config.js:10` (High - Resolved in Step 03b commit `9cb6478`)**:
   - *Finding*: Preview web environment variable defaulted to production API, returning 404 for pre-merge branch endpoints.
   - *Severity*: High.
   - *Disposition*: Fixed in Step 03b via dynamic preview origin resolution in `next.config.js` and documented in ADR 0008.
 
-**Summary**: 5 total findings (2 Standards, 3 Spec). Highest severity: High (Preview API environment routing, resolved in Step 03b).
+**Summary**: 6 total findings (3 Standards, 3 Spec). All findings resolved and verified against the real diff `19ae009..fbf2ef6`.
 
 ---
 
