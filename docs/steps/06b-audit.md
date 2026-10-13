@@ -2,7 +2,7 @@
 
 **Step Branch**: `step/06b-audit`  
 **Primary Branch**: `master`  
-**Pull Request**: `[Pending creation]`  
+**Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/12  
 
 ---
 
@@ -88,8 +88,8 @@ Conduct a comprehensive system audit resolving all non-negotiable invariants, ha
 
 ## Diff / Checkpoint
 
-- **Pull Request URL**: `[Pending]`
+- **Pull Request URL**: https://github.com/richmondsogo/Downtown-Frontend/pull/12
 - **First Commit SHA**: `8b139ac`
-- **Last Commit SHA**: `[Pending]`
-- **Merge Commit SHA**: `[Pending]`
+- **Last Commit SHA**: `52eaa09`
+- **Merge Commit SHA**: `[Pending merge]`
 - **Merge Strategy**: Standard merge commit (`--no-ff`)
