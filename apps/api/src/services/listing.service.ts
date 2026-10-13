@@ -8,6 +8,8 @@ import {
   campus,
   user,
   savedListing,
+  purchaseRequest,
+  notification,
 } from "../db/schema";
 import { eq, and, isNull, desc, inArray, asc, sql, lt, count } from "drizzle-orm";
 import {
@@ -263,6 +265,27 @@ export class ListingService {
     }
     if (input.locationId) {
       await this.validateLocation(input.locationId, sellerId);
+    }
+
+    if (input.quantityAvailable !== undefined) {
+      const [liveSumRow] = await db
+        .select({
+          totalReserved: sql<number>`COALESCE(SUM(${purchaseRequest.requestedQuantity}), 0)`,
+        })
+        .from(purchaseRequest)
+        .where(
+          and(
+            eq(purchaseRequest.listingId, listingId),
+            eq(purchaseRequest.status, "pending"),
+            sql`${purchaseRequest.reservationExpiresAt} > now()`
+          )
+        );
+      const liveReserved = Number(liveSumRow?.totalReserved) || 0;
+      if (input.quantityAvailable < liveReserved) {
+        throw new BadRequestError(
+          `Cannot set quantity available (${input.quantityAvailable}) below currently reserved quantity (${liveReserved}).`
+        );
+      }
     }
 
     // Existing photos
@@ -521,6 +544,84 @@ export class ListingService {
     }
 
     await db.delete(listing).where(eq(listing.id, listingId));
+  }
+
+  /**
+   * Archives a listing. Cancels any live pending purchase requests and notifies buyers.
+   */
+  async archiveListing(sellerId: string, listingId: string): Promise<Listing> {
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(listing)
+        .where(eq(listing.id, listingId))
+        .for("update")
+        .limit(1);
+
+      if (!existing) {
+        throw new NotFoundError("Listing not found.");
+      }
+      if (existing.sellerId !== sellerId) {
+        throw new ForbiddenError("You cannot archive a listing that does not belong to you.");
+      }
+
+      // Find and cancel any live pending requests
+      const liveReqs = await tx
+        .select()
+        .from(purchaseRequest)
+        .where(
+          and(
+            eq(purchaseRequest.listingId, listingId),
+            eq(purchaseRequest.status, "pending"),
+            sql`${purchaseRequest.reservationExpiresAt} > now()`
+          )
+        )
+        .for("update");
+
+      if (liveReqs.length > 0) {
+        await tx
+          .update(purchaseRequest)
+          .set({
+            status: "cancelled",
+            cancelledBy: "system",
+            updatedAt: sql`now()`,
+          })
+          .where(
+            inArray(
+              purchaseRequest.id,
+              liveReqs.map((r) => r.id)
+            )
+          );
+
+        for (const req of liveReqs) {
+          const notifId = crypto.randomUUID();
+          await tx.insert(notification).values({
+            id: notifId,
+            userId: req.buyerId,
+            type: "purchase_request_cancelled",
+            payload: JSON.stringify({
+              requestId: req.id,
+              listingId,
+              cancelledBy: "system",
+              reason: "Listing was archived by seller.",
+            }),
+            readAt: null,
+            createdAt: sql`now()`,
+          });
+        }
+      }
+
+      await tx
+        .update(listing)
+        .set({
+          status: "archived",
+          quantityReserved: 0,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(listing.id, listingId));
+
+      return this.getListingById(sellerId, listingId);
+    });
   }
 
   /**
@@ -873,12 +974,54 @@ export class ListingService {
         ? "pending"
         : "not_a_seller";
 
-    const availability =
-      row.listing.status === "sold"
-        ? "sold"
-        : row.listing.status === "reserved"
-        ? "reserved"
-        : "available";
+    // Recompute live reserved quantity from source of truth
+    const [liveSumRow] = await db
+      .select({
+        totalReserved: sql<number>`COALESCE(SUM(${purchaseRequest.requestedQuantity}), 0)`,
+      })
+      .from(purchaseRequest)
+      .where(
+        and(
+          eq(purchaseRequest.listingId, listingId),
+          eq(purchaseRequest.status, "pending"),
+          sql`${purchaseRequest.reservationExpiresAt} > now()`
+        )
+      );
+
+    const liveReserved = Number(liveSumRow?.totalReserved) || 0;
+    const effectiveUnreserved = Math.max(0, row.listing.quantityAvailable - liveReserved);
+
+    let availability: "available" | "reserved" | "sold" = "available";
+    if (row.listing.status === "sold") {
+      availability = "sold";
+    } else if (effectiveUnreserved <= 0) {
+      availability = "reserved";
+    }
+
+    let activeRequest = null;
+    if (currentUserId) {
+      const [activeReqRow] = await db
+        .select()
+        .from(purchaseRequest)
+        .where(
+          and(
+            eq(purchaseRequest.buyerId, currentUserId),
+            eq(purchaseRequest.listingId, listingId),
+            eq(purchaseRequest.status, "pending"),
+            sql`${purchaseRequest.reservationExpiresAt} > now()`
+          )
+        )
+        .limit(1);
+
+      if (activeReqRow) {
+        activeRequest = {
+          id: activeReqRow.id,
+          requestedQuantity: activeReqRow.requestedQuantity,
+          offerPrice: activeReqRow.offerPrice,
+          reservationExpiresAt: activeReqRow.reservationExpiresAt.toISOString(),
+        };
+      }
+    }
 
     return {
       id: row.listing.id,
@@ -912,9 +1055,12 @@ export class ListingService {
         totalActiveListings: Number(activeCount) || 0,
       },
       availability,
+      effectiveAvailability: effectiveUnreserved,
+      quantityAvailable: row.listing.quantityAvailable,
       status: row.listing.status as ListingStatus,
       viewCount: row.listing.viewCount ?? 0,
       isSaved,
+      activeRequest,
       createdAt: row.listing.createdAt.toISOString(),
       updatedAt: row.listing.updatedAt.toISOString(),
     };

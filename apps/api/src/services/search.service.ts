@@ -37,8 +37,18 @@ export class SearchService {
 
     // 1. Centralized Lifecycle Eligibility (ADR 0008 & Step 05 Amendment e)
     // Draft, pending_moderation, and archived are NEVER discoverable.
-    if (!isSearchQuery || availabilityFilter === "in_stock") {
-      // Unsearched home feed, category browsing, or in_stock filter -> never show sold
+    const liveReservedExpr = sql<number>`COALESCE((
+      SELECT SUM(pr.requested_quantity)
+      FROM purchase_requests pr
+      WHERE pr.listing_id = ${listing.id}
+        AND pr.status = 'pending'
+        AND pr.reservation_expires_at > now()
+    ), 0)`;
+
+    if (availabilityFilter === "in_stock") {
+      conditions.push(inArray(listing.status, ["published", "reserved"]));
+      conditions.push(sql`(${listing.quantityAvailable} - ${liveReservedExpr}) > 0`);
+    } else if (!isSearchQuery) {
       conditions.push(inArray(listing.status, ["published", "reserved"]));
     } else {
       // Search query present and availability != in_stock -> show published, reserved, and sold (sold ranked last)
@@ -133,6 +143,13 @@ export class SearchService {
         sellerName: user.name,
         sellerStatus: user.sellerStatus,
         rankScore: rankScoreExpr,
+        effectiveReserved: sql<number>`COALESCE((
+          SELECT SUM(pr.requested_quantity)
+          FROM purchase_requests pr
+          WHERE pr.listing_id = ${listing.id}
+            AND pr.status = 'pending'
+            AND pr.reservation_expires_at > now()
+        ), 0)`,
       })
       .from(listing)
       .leftJoin(location, eq(listing.locationId, location.id))
@@ -189,9 +206,10 @@ export class SearchService {
         };
       }
 
+      const unreserved = Math.max(0, r.listing.quantityAvailable - Number(r.effectiveReserved || 0));
       let availability: "available" | "reserved" | "sold" = "available";
       if (r.listing.status === "sold") availability = "sold";
-      else if (r.listing.status === "reserved") availability = "reserved";
+      else if (unreserved <= 0) availability = "reserved";
 
       return {
         id: r.listing.id,
