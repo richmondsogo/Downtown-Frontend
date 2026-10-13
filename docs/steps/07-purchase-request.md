@@ -2,7 +2,9 @@
 
 **Step Branch**: `step/07-purchase-request`  
 **Primary Branch**: `master`  
-**Pull Request**: `[Pending approval]`  
+**Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/14  
+**First Commit**: `cacaa4c`  
+**Last Commit**: `9b9e209`  
 
 ---
 
@@ -118,3 +120,21 @@ Implement the transaction-backed purchase request system connecting prospective 
 - Active request display on listing detail and `/requests`.
 - Seller dashboard incoming requests with unread notification badge.
 - Seams provided for Step 08 reconciliation.
+
+---
+
+## Verification & Test Proofs
+
+- **Unit & Integration Test Suite**: `apps/api/src/__tests__/purchase-request.test.ts` (13 tests passing)
+  - Race concurrency: exactly one of concurrent transactions gets 201, other gets 409 when 1 unit remains.
+  - Idempotent repeated contact: returns HTTP 200 with existing request and wa.me link.
+  - Lapsed hold non-blocking: reservation expired past 24h frees stock immediately without requiring sweep.
+  - Abuse quotas: max 5 active requests per buyer and 15 per 24 hours enforced with HTTP 429.
+  - IDOR and phone privacy: buyer phone never exposed to seller; seller phone only inside authenticated wa.me link.
+  - Offer bounds: only allowed on negotiable listings, between 10% and 100% of listing price.
+  - Archiving: cancels live requests with `cancelled_by = 'system'` and notifies buyers.
+  - Cron security: rejects unauthorized requests with HTTP 401 without valid Bearer CRON_SECRET.
+- **Repository-Wide Checks**:
+  - `pnpm check-types`: 0 errors across all 6 workspaces.
+  - `pnpm test`: 15 test suites, 154 tests passing.
+  - `scripts/verify.ps1`: 12/12 checks passed (Typecheck OK, Tests OK, Build OK, Secrets OK).
