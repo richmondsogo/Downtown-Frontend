@@ -62,6 +62,9 @@ coverage/
 .coverage
 htmlcov/
 
+# ─── Trace files and dumps under step assets ──────────────────────────────────
+docs/steps/assets/*.json
+
 # ─── MCP / Agent local config ────────────────────────────────────────────────
 # Commit the .example file; never commit real configs with credentials.
 .agents/mcp_config.json

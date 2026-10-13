@@ -108,4 +108,14 @@ describe("Seed Guard Environment Safety Suite", () => {
       })
     ).toThrow(/FATAL: DATABASE_URL is not a valid URL/);
   });
+
+  it("REFUSES localhost execution in any non-dev setting (staging / preview / test)", () => {
+    expect(() =>
+      assertSafeSeedEnvironment({
+        nodeEnv: "staging",
+        allowSeed: "1",
+        databaseUrl: "postgresql://postgres:postgres@localhost:5432/downtown",
+      })
+    ).toThrow(/REFUSED: Database host "localhost" is not on the dev allowlist/);
+  });
 });

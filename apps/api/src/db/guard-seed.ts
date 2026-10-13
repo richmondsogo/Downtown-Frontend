@@ -21,8 +21,13 @@ export const ALLOWED_DEV_HOSTS = DEFAULT_ALLOWED_DEV_HOSTS;
 
 export const PRODUCTION_HOST = "ep-noisy-fog-bafy7lrh-pooler.c-8.eu-central-1.aws.neon.tech";
 
-export function getAllowedDevHosts(): string[] {
-  const hosts = [...DEFAULT_ALLOWED_DEV_HOSTS];
+export function getAllowedDevHosts(nodeEnv?: string): string[] {
+  const env = nodeEnv ?? process.env.NODE_ENV ?? "development";
+  const hosts = ["ep-shiny-credit-baedn5p1-pooler.c-8.eu-central-1.aws.neon.tech"];
+  // Localhost is strictly restricted to development environments
+  if (env === "development") {
+    hosts.push("localhost", "127.0.0.1");
+  }
   if (process.env.DEV_DB_HOST && process.env.DEV_DB_HOST.trim()) {
     hosts.push(process.env.DEV_DB_HOST.trim());
   }
@@ -58,7 +63,7 @@ export function assertSafeSeedEnvironment(options?: SeedGuardOptions): { host: s
     throw new Error(`REFUSED: Database host "${host}" matches production database.`);
   }
 
-  const allowedHosts = options?.allowedDevHosts ?? getAllowedDevHosts();
+  const allowedHosts = options?.allowedDevHosts ?? getAllowedDevHosts(nodeEnv);
   const isAllowed = allowedHosts.includes(host);
   if (!isAllowed) {
     throw new Error(`REFUSED: Database host "${host}" is not on the dev allowlist.`);

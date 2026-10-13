@@ -532,11 +532,27 @@ describe("Listing Creation & Photo Pipeline Integration Suite", () => {
     let photoId: string;
 
     beforeAll(async () => {
-      const [photo] = await db
+      let [photo] = await db
         .select()
         .from(listingPhoto)
         .where(eq(listingPhoto.ownerId, sellerAId))
         .limit(1);
+      if (!photo) {
+        const phtId = `pht_mod_${Date.now()}`;
+        const [inserted] = await db
+          .insert(listingPhoto)
+          .values({
+            id: phtId,
+            ownerId: sellerAId,
+            key: `photos/${phtId}.webp`,
+            thumbKey: `photos/${phtId}_thumb.webp`,
+            width: 800,
+            height: 600,
+            bytes: 1024,
+          })
+          .returning();
+        photo = inserted;
+      }
       photoId = photo.id;
     });
 
