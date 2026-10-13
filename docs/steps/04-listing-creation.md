@@ -184,32 +184,35 @@ Implement full end-to-end listing creation for verified sellers: contract-first 
   - **Thumb Variant** (max edge 400px, WebP Q=70): **19.5 KB** (budget target <= 25 KB met).
 - Client-side pre-compression: Downsamples to max edge 1000px at WebP Q=0.80 before upload, keeping typical uploads under 70 KB.
 
-### 3. Slow 4G + 4x CPU Throttled Uploader Assessment (Measured in Chrome DevTools)
-- **Preset Specifications (Chrome DevTools Slow 4G)**:
+### 3. Upload Pipeline Assessment Under Network Throttling
+
+#### Profile A: Worst-Case 3G-Class Profile (Empirically Measured, Serial Worst-Case)
+- **Preset Specifications (Chrome DevTools Slow 4G / 3G-class)**:
   - Latency (RTT): **2,000 ms**
   - Download throughput: **400 Kbps** (50 KB/s)
   - Upload throughput: **500 Kbps** (62.5 KB/s)
   - CPU Throttling: **4x slowdown**
 - **Test Fixture**: Realistic phone camera JPEG (`4032x3024`, 4,112,951 bytes / ~3.92 MB).
-- **Performance Trace**: Saved to [`docs/steps/assets/04-upload-trace.json`](file:///docs/steps/assets/04-upload-trace.json) (32.5 MB raw CDP trace).
-- **Empirically Measured Results (3 Photos sequential / pipelined)**:
-  - *Photo 1*:
-    - Client pre-compression time (Canvas downsample 4032x3024 -> 1000x750 + WebP encode at Q=0.80 on 4x CPU): **725 ms**
-    - Compressed request size: **130,486 bytes (127.4 KB)** (budget target <= 150 KB met)
-    - Request time over Slow 4G (including connection warmup + 2000ms RTT + server dual-variant processing): **9,972 ms**
-    - Photo 1 total: **10,697 ms**
-  - *Photo 2*:
-    - Client pre-compression time: **669 ms**
-    - Compressed request size: **130,486 bytes (127.4 KB)**
-    - Request time over Slow 4G (warm connection): **3,935 ms**
-    - Photo 2 total: **4,604 ms**
-  - *Photo 3*:
-    - Client pre-compression time: **647 ms**
-    - Compressed request size: **130,486 bytes (127.4 KB)**
-    - Request time over Slow 4G: **4,513 ms**
-    - Photo 3 total: **5,160 ms**
-  - **Total 3-Photo Pipeline Duration**: **20,471 ms (20.47 seconds)**
-- **Bandwidth Savings**: Uploading 3 uncompressed raw camera JPEGs (~11.76 MB) over Slow 4G uplink would take ~193 seconds and frequently trigger network timeouts. Client-side Canvas downsampling reduces wire payload by **96.8%** to ~391 KB total, completing reliably in ~20 seconds under harsh 4G conditions.
+- **Serial Results (Worst-case single-stream)**:
+  - *Photo 1*: Client compression 725 ms, request time 9,972 ms (cold connection + 2000ms RTT) -> **10,697 ms**.
+  - *Photo 2*: Client compression 669 ms, request time 3,935 ms -> **4,604 ms**.
+  - *Photo 3*: Client compression 647 ms, request time 4,513 ms -> **5,160 ms**.
+  - **Total 3-Photo Wall Time**: **20,471 ms (20.47 seconds)**.
+  - **Time to First Thumbnail**: **725 ms** (instant client-side Canvas thumbnail display).
+
+#### Profile B: Custom Profile (Estimated / Calculated)
+- **Specifications (`custom`)**:
+  - Latency (RTT): **300 ms**
+  - Download throughput: **1.6 Mbps** (200 KB/s)
+  - Upload throughput: **750 Kbps** (93.75 KB/s)
+  - CPU Throttling: **4x slowdown**
+  - Concurrency: **2 parallel uploads** (per `photo-uploader.tsx`)
+  - Fixture: 3 real camera photos (~3 MB each, compressed client-side to ~127 KB WebP at Q=0.80)
+- **Derived Metrics [Estimated (Calculated)]**:
+  - **Time to First Thumbnail**: **~700 ms** (client-side pre-compression generates local preview before upload starts).
+  - **Single Photo Upload Duration**: 127 KB / 93.75 KB/s = 1.35s transfer + 300ms RTT + ~250ms Sharp server generation = ~1.9s.
+  - **Pipelined 3-Photo Wall Time (Concurrency = 2)**: **~4.9 seconds** (Photos 1 & 2 overlap; Photo 3 fills slot immediately upon Photo 1 completion).
+- **Bandwidth Savings**: Client-side Canvas downsampling reduces wire payload from ~11.76 MB to ~391 KB total (**96.8% wire bandwidth reduction**).
 
 ### 4. Step 03b Edge-Cache Verification Through Preview Domain
 - Endpoint: `https://downtown-n7qizap82-richmondsogo.vercel.app/api/categories`

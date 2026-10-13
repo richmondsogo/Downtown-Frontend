@@ -10,37 +10,32 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Store } from "lucide-react";
 import type { Category } from "@downtown/types";
 
-const FALLBACK_CATEGORIES: Category[] = [
-  { id: "cat_electronics", name: "Electronics", slug: "electronics", displayOrder: 1, isActive: true, createdAt: new Date() },
-  { id: "cat_fashion_accessories", name: "Fashion & Accessories", slug: "fashion-accessories", displayOrder: 2, isActive: true, createdAt: new Date() },
-  { id: "cat_food_drinks", name: "Food & Drinks", slug: "food-drinks", displayOrder: 3, isActive: true, createdAt: new Date() },
-  { id: "cat_home_living", name: "Home & Living", slug: "home-living", displayOrder: 4, isActive: true, createdAt: new Date() },
-  { id: "cat_books_study_materials", name: "Books & Study Materials", slug: "books-study-materials", displayOrder: 5, isActive: true, createdAt: new Date() },
-  { id: "cat_beauty_personal_care", name: "Beauty & Personal Care", slug: "beauty-personal-care", displayOrder: 6, isActive: true, createdAt: new Date() },
-  { id: "cat_services", name: "Services", slug: "services", displayOrder: 7, isActive: true, createdAt: new Date() },
-  { id: "cat_tickets_events", name: "Tickets & Events", slug: "tickets-events", displayOrder: 8, isActive: true, createdAt: new Date() },
-  { id: "cat_other", name: "Other", slug: "other", displayOrder: 9, isActive: true, createdAt: new Date() },
-];
-
 export default function NewListingPage() {
   const { isAuthenticated, isPending, user } = useAuthGate();
-  const [categories, setCategories] = React.useState<Category[]>(FALLBACK_CATEGORIES);
+  const [categories, setCategories] = React.useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = React.useState(true);
+  const [categoryError, setCategoryError] = React.useState<string | null>(null);
 
   const isSeller = canSell(user as any);
 
   React.useEffect(() => {
     async function loadCategories() {
       try {
+        setIsLoadingCategories(true);
+        setCategoryError(null);
         const res = await fetch("/api/categories");
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setCategories(data);
-          }
+        if (!res.ok) {
+          throw new Error("Failed to load categories from server");
         }
-      } catch (e) {
-        console.warn("Failed to load categories, using fallback:", e);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+        } else {
+          throw new Error("No active categories found");
+        }
+      } catch (e: any) {
+        console.error("Failed to load categories:", e);
+        setCategoryError(e.message || "Failed to load categories");
       } finally {
         setIsLoadingCategories(false);
       }

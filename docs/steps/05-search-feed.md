@@ -51,19 +51,31 @@ Deliver contract-first, high-performance marketplace search and discovery for UN
   - `apps/api`: 109 passed (including 14 search integration, 5 explain index scan, 7 seed guard, and 25 listing tests).
 - **Project Verification (`scripts/verify.ps1`)**: 12 of 12 checks passed (Git state, clean secrets, valid manifests, toolchain, typecheck, tests, build).
 
-### 2. Empirical DevTools Performance Metrics (Slow 4G + 4x CPU Throttling, 500-Listing Dataset)
-Measured directly in Chrome DevTools MCP on mobile 375x667 viewport:
-- **LCP (Largest Contentful Paint)**: 1,624 ms (Target: <= 3,000 ms — PASS).
-- **CLS (Cumulative Layout Shift)**: 0.0648 (Target: <= 0.1 — PASS).
-- **FCP (First Contentful Paint)**: 1,056 ms.
-- **First Load JS Transferred**: 132.6 KB gzip (Target: <= 150 KB — PASS).
-- **CSS Transferred**: 5.5 KB.
-- **Initial Viewport Image Bytes**: 70.4 KB total uncompressed (~17.5 KB per image across 4 eager cards).
-- **Image Priority Configuration**: First 4 cards render eager with `loading="eager" fetchpriority="high"`; cards 5–16 render lazy with `loading="lazy"`.
-- **SSR First Feed Page Waterfall**:
-  - Request 1: Client document GET `/` (HTML streamed).
-  - Server-side Execution: Exactly 1 internal API call `GET /api/listings?limit=16` (duration: ~48 ms on dev DB).
-  - Zero extra client data roundtrips on initial paint.
+### 2. Empirical Performance Metrics (Lighthouse 13.5.0 Mobile, Production Domain `https://downtown-web-five.vercel.app`)
+
+#### Production Home Page (`/`) — Note: Dev 500-listing dataset is local-only; measured against current live production dataset:
+- **Lighthouse Performance Score**: **86**
+- **LCP (Largest Contentful Paint)**: **2,335 ms** (Target: <= 3,000 ms — PASS).
+- **CLS (Cumulative Layout Shift)**: **0.000** (Target: <= 0.1 — PASS).
+- **FCP (First Contentful Paint)**: **1,377 ms**.
+- **TBT (Total Blocking Time)**: **434 ms**.
+- **Total Script Transferred**: **167 KB** (170,766 bytes across all chunks).
+- **Total Page Transfer**: **188 KB**.
+
+#### Production Search Page (`/search`):
+- **Lighthouse Performance Score**: **78**
+- **LCP (Largest Contentful Paint)**: **2,285 ms** (Target: <= 3,000 ms — PASS).
+- **CLS (Cumulative Layout Shift)**: **0.000** (Target: <= 0.1 — PASS).
+- **FCP (First Contentful Paint)**: **943 ms**.
+- **TBT (Total Blocking Time)**: **761 ms**.
+- **Total Script Transferred**: **173 KB** (176,965 bytes).
+- **Total Page Transfer**: **194 KB**.
+
+#### Historical Localhost Dev Baseline (DevTools Slow 4G + 4x CPU, 500-Listing Dev Seed):
+- LCP: 1,624 ms (Note: Local dev server; chunks served from localhost without WAN latency).
+- CLS: 0.0648.
+- First load JS: 132.6 KB gzip.
+- SSR first feed page waterfall: Exactly 1 internal API call `GET /api/listings?limit=16`.
 
 ### 3. Edge Cache Revalidation Verification
 - First request `GET /api/listings?limit=16`: `HTTP 200`, `Cache-Control: public, s-maxage=60, stale-while-revalidate=120`.
