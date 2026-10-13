@@ -494,4 +494,80 @@ export function isListingDiscoverable(
   return false;
 }
 
+export const PurchaseRequestStatusEnum = z.enum([
+  "pending",
+  "completed",
+  "disputed",
+  "expired",
+  "cancelled",
+]);
+export type PurchaseRequestStatus = z.infer<typeof PurchaseRequestStatusEnum>;
+
+export const CancelledByEnum = z.enum(["buyer", "seller", "system"]);
+export type CancelledBy = z.infer<typeof CancelledByEnum>;
+
+export const ALLOWED_PURCHASE_REQUEST_TRANSITIONS: Record<
+  PurchaseRequestStatus,
+  readonly { to: PurchaseRequestStatus; allowedActors: readonly ("buyer" | "seller" | "system")[] }[]
+> = {
+  pending: [
+    { to: "cancelled", allowedActors: ["buyer", "seller", "system"] },
+    { to: "expired", allowedActors: ["system"] },
+    { to: "completed", allowedActors: ["buyer", "seller"] },
+    { to: "disputed", allowedActors: ["buyer", "seller"] },
+  ],
+  completed: [],
+  disputed: [],
+  expired: [],
+  cancelled: [],
+};
+
+export function isAllowedPurchaseRequestTransition(
+  from: PurchaseRequestStatus,
+  to: PurchaseRequestStatus,
+  actor: "buyer" | "seller" | "system"
+): boolean {
+  if (from === to) return true;
+  const allowed = ALLOWED_PURCHASE_REQUEST_TRANSITIONS[from];
+  if (!allowed) return false;
+  return allowed.some((entry) => entry.to === to && entry.allowedActors.includes(actor));
+}
+
+export const CreatePurchaseRequestSchema = z.object({
+  requestedQuantity: z
+    .number()
+    .int("Quantity must be a whole number")
+    .min(1, "Quantity must be at least 1")
+    .max(999, "Quantity cannot exceed 999")
+    .default(1),
+  offerPrice: z
+    .number()
+    .int("Offer price must be a whole integer in Naira")
+    .min(1, "Offer price must be at least ₦1")
+    .max(MAX_LISTING_PRICE_NAIRA, `Offer price cannot exceed ₦${MAX_LISTING_PRICE_NAIRA.toLocaleString()}`)
+    .optional()
+    .nullable(),
+});
+export type CreatePurchaseRequestInput = z.infer<typeof CreatePurchaseRequestSchema>;
+
+export const CancelPurchaseRequestSchema = z.object({
+  reason: z.string().trim().max(200).optional(),
+});
+export type CancelPurchaseRequestInput = z.infer<typeof CancelPurchaseRequestSchema>;
+
+export const UserPhoneSchema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .min(10, "Please enter a valid Nigerian mobile number (e.g. 08012345678)")
+    .max(20, "Phone number cannot exceed 20 characters")
+    .refine((val) => {
+      const cleaned = val.replace(/[\s\-\(\)\.]/g, "");
+      return /^(?:\+?234|0)?[789]\d{9}$/.test(cleaned);
+    }, {
+      message: "Please enter a valid Nigerian mobile number (e.g. 08012345678)",
+    }),
+});
+export type UserPhoneInput = z.infer<typeof UserPhoneSchema>;
+
 

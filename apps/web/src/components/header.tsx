@@ -14,13 +14,43 @@ import {
   ShieldCheck,
   Store,
   Heart,
+  MessageSquare,
 } from "lucide-react";
 
 export function Header() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [unreadCount, setUnreadCount] = React.useState<number>(0);
   const menuRef = React.useRef<HTMLDivElement>(null);
+
+  // Fetch unread notifications count when user is logged in
+  React.useEffect(() => {
+    if (!session?.user) {
+      setUnreadCount(0);
+      return;
+    }
+    let isMounted = true;
+    async function fetchUnread() {
+      try {
+        const res = await fetch("/api/notifications");
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && typeof json.unreadCount === "number") {
+            setUnreadCount(json.unreadCount);
+          }
+        }
+      } catch {
+        // silent fallback
+      }
+    }
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000); // 30s poll
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [session?.user]);
 
   // Close menu on click outside
   React.useEffect(() => {
@@ -83,6 +113,21 @@ export function Header() {
           <Heart className="h-4 w-4" />
         </Link>
 
+        {user && (
+          <Link
+            href="/requests"
+            aria-label="View purchase requests"
+            className="relative p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <MessageSquare className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </Link>
+        )}
+
         {isPending ? (
           <div className="h-9 w-20 bg-muted animate-pulse rounded-md" />
         ) : user ? (
@@ -133,6 +178,21 @@ export function Header() {
                 </div>
 
                 <div className="pt-0.5 space-y-1">
+                  <Link
+                    href="/requests"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center justify-between px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted rounded-md transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                      <span>Purchase Requests</span>
+                    </div>
+                    {unreadCount > 0 && (
+                      <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-white bg-destructive rounded-full">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Link>
                   <Link
                     href="/saved"
                     onClick={() => setMenuOpen(false)}

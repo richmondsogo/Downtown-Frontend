@@ -50,6 +50,13 @@
       "when": 1791816946757,
       "tag": "0006_yielding_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791882607035,
+      "tag": "0007_outstanding_the_renegades",
+      "breakpoints": true
     }
   ]
 }

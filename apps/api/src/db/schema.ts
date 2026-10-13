@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, bigint, check, index, customType, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, bigint, check, index, customType, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 const tsvector = customType<{ data: string }>({
@@ -19,6 +19,7 @@ export const user = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     role: text("role").notNull().default("student"),
     matricNumber: text("matric_number"),
+    phone: text("phone"),
     sellerStatus: text("seller_status").notNull().default("not_a_seller"),
     accountStatus: text("account_status").notNull().default("active"),
   },
@@ -175,7 +176,7 @@ export const listing = pgTable(
     check("listing_status_check", sql`${table.status} IN ('draft', 'pending_moderation', 'published', 'reserved', 'sold', 'archived')`),
     check("listing_condition_check", sql`${table.condition} IS NULL OR ${table.condition} IN ('new', 'like_new', 'good', 'fair')`),
     check("listing_price_check", sql`${table.price} >= 1`),
-    check("listing_quantity_check", sql`${table.quantityAvailable} >= 1 AND ${table.quantityReserved} >= 0`),
+    check("listing_quantity_check", sql`${table.quantityAvailable} >= 1 AND ${table.quantityReserved} >= 0 AND ${table.quantityReserved} <= ${table.quantityAvailable}`),
     index("listing_seller_status_idx").on(table.sellerId, table.status),
     index("listing_status_created_at_idx").on(table.status, table.createdAt),
     index("listing_category_idx").on(table.categoryId),
@@ -251,5 +252,65 @@ export const savedListing = pgTable(
   ]
 );
 export const savedListings = savedListing;
+
+export const purchaseRequest = pgTable(
+  "purchase_requests",
+  {
+    id: text("id").primaryKey(),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "cascade" }),
+    buyerId: text("buyer_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    sellerId: text("seller_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    requestedQuantity: integer("requested_quantity").notNull().default(1),
+    unitPrice: integer("unit_price").notNull(),
+    offerPrice: integer("offer_price"),
+    status: text("status").notNull().default("pending"),
+    cancelledBy: text("cancelled_by"),
+    reservationExpiresAt: timestamp("reservation_expires_at", { withTimezone: true }).notNull(),
+    resolutionDeadline: timestamp("resolution_deadline", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("purchase_request_status_check", sql`${table.status} IN ('pending', 'completed', 'disputed', 'expired', 'cancelled')`),
+    check("purchase_request_cancelled_by_check", sql`${table.cancelledBy} IS NULL OR ${table.cancelledBy} IN ('buyer', 'seller', 'system')`),
+    check("purchase_request_quantity_check", sql`${table.requestedQuantity} >= 1`),
+    check("purchase_request_offer_check", sql`${table.offerPrice} IS NULL OR ${table.offerPrice} >= 1`),
+    uniqueIndex("purchase_request_buyer_listing_pending_idx")
+      .on(table.buyerId, table.listingId)
+      .where(sql`${table.status} = 'pending'`),
+    index("purchase_request_listing_status_idx").on(table.listingId, table.status),
+    index("purchase_request_buyer_status_idx").on(table.buyerId, table.status),
+    index("purchase_request_seller_status_idx").on(table.sellerId, table.status),
+    index("purchase_request_expires_idx").on(table.status, table.reservationExpiresAt),
+    index("purchase_request_deadline_idx").on(table.status, table.resolutionDeadline),
+  ]
+);
+export const purchaseRequests = purchaseRequest;
+
+export const notification = pgTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    payload: text("payload").notNull().default("{}"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("notification_user_unread_idx").on(table.userId, table.readAt),
+    index("notification_user_created_idx").on(table.userId, table.createdAt),
+  ]
+);
+export const notifications = notification;
+
 
 

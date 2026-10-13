@@ -7,6 +7,7 @@ import { PhotoCarousel } from "@/components/photo-carousel";
 import { SellerTrustCard } from "@/components/seller-trust-card";
 import { CampusSafetyNotice } from "@/components/campus-safety-notice";
 import { SaveButton } from "@/components/save-button";
+import { ContactSellerCta } from "@/components/contact-seller-cta";
 import { ViewTracker } from "./view-tracker";
 import { getApiBaseUrl } from "@/lib/api";
 import { formatNaira, formatTimeAgo, cn } from "@downtown/utils";
@@ -247,20 +248,16 @@ export default async function ListingDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Contact Seller Action Box (Disabled placeholder for Step 07) */}
-              <div className="pt-3 border-t border-border/60 space-y-2">
-                <Button
-                  disabled
-                  className="w-full h-12 text-sm sm:text-base font-semibold opacity-80 cursor-not-allowed bg-muted text-muted-foreground border border-border"
-                  aria-label="Direct messaging unlocks in Step 07"
-                >
-                  <Lock className="h-4 w-4 mr-2" />
-                  <span>Contact Seller (Unlocks in Step 07)</span>
-                </Button>
-                <p className="text-center text-[11px] text-muted-foreground leading-tight">
-                  Direct seller chat and verified WhatsApp handoff activate in Step 07 to protect student safety.
-                </p>
-              </div>
+              {/* Contact Seller Action Box */}
+              <ContactSellerCta
+                listingId={listing.id}
+                title={listing.title}
+                price={listing.price}
+                isNegotiable={listing.isNegotiable}
+                quantityAvailable={1}
+                availability={listing.availability}
+                initialActiveRequest={listing.activeRequest}
+              />
             </div>
 
             {/* Seller Trust Profile Card */}

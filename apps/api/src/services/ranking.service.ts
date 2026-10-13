@@ -40,11 +40,20 @@ export function buildRankScoreSql(q?: string, viewerCampusId?: string): SQL<numb
     ? sql<number>`CASE WHEN ${location.campusId} = ${viewerCampusId} THEN 0.25 ELSE 0.0 END`
     : sql<number>`0.0`;
 
-  // Status scoring: published=1.0, reserved=0.5, sold=-100.0 (sold always ranked last)
+  // Status scoring with effective availability:
+  // sold = -100.0, available (effective unreserved > 0) = 1.0, reserved (effective unreserved <= 0) = 0.5
+  const liveReservedSubquery = sql<number>`COALESCE((
+    SELECT SUM(pr.requested_quantity)
+    FROM purchase_requests pr
+    WHERE pr.listing_id = ${listing.id}
+      AND pr.status = 'pending'
+      AND pr.reservation_expires_at > now()
+  ), 0)`;
+
   const statusScore = sql<number>`CASE 
-    WHEN ${listing.status} = 'published' THEN 1.0 
-    WHEN ${listing.status} = 'reserved' THEN 0.5 
-    ELSE -100.0 
+    WHEN ${listing.status} = 'sold' THEN -100.0
+    WHEN (${listing.quantityAvailable} - ${liveReservedSubquery}) > 0 THEN 1.0 
+    ELSE 0.5 
   END`;
 
   // Recency decay bonus (normalized timestamp)

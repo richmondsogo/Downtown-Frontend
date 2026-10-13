@@ -269,9 +269,17 @@ export interface PublicListingDetail {
   photos: PublicListingPhoto[];
   seller: SellerTrustProfile;
   availability: ListingAvailability;
+  effectiveAvailability?: number;
+  quantityAvailable?: number;
   status: ListingStatus;
   viewCount: number;
   isSaved?: boolean;
+  activeRequest?: {
+    id: string;
+    requestedQuantity: number;
+    offerPrice?: number | null;
+    reservationExpiresAt: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -283,5 +291,61 @@ export interface SavedListingItem {
 
 export interface ToggleSaveResponse {
   saved: boolean;
+}
+
+export type PurchaseRequestStatus =
+  | "pending"
+  | "completed"
+  | "disputed"
+  | "expired"
+  | "cancelled";
+
+export type CancelledBy = "buyer" | "seller" | "system";
+
+export interface PurchaseRequest {
+  id: string;
+  listingId: string;
+  buyerId: string;
+  sellerId: string;
+  requestedQuantity: number;
+  unitPrice: number;
+  offerPrice?: number | null;
+  status: PurchaseRequestStatus;
+  cancelledBy?: CancelledBy | null;
+  reservationExpiresAt: Date | string;
+  resolutionDeadline: Date | string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  // Snapshot and join projections
+  listingTitle?: string;
+  listingThumbUrl?: string | null;
+  sellerFirstName?: string;
+  buyerName?: string;
+  whatsappUrl?: string;
+}
+
+export interface CreatePurchaseRequestInput {
+  requestedQuantity: number;
+  offerPrice?: number | null;
+}
+
+export interface PurchaseRequestResponse {
+  request: PurchaseRequest;
+  whatsappUrl: string;
+  isExisting?: boolean;
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: string;
+  payload: Record<string, any>;
+  readAt?: Date | string | null;
+  createdAt: Date | string;
+}
+
+export interface UnreadNotificationsResponse {
+  unreadCount: number;
+  notifications: NotificationItem[];
 }
 
