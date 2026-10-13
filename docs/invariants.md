@@ -83,3 +83,25 @@ This document codifies the non-negotiable architectural, security, data integrit
 ## 14. View Tracking & Save Idempotency
 - **Fire-and-Forget Analytics**: View counter increment is fire-and-forget via `navigator.sendBeacon` or `fetch(url, { method: "POST", keepalive: true })`. It must never block page rendering.
 - **Save Idempotency**: Save and unsave operations must be idempotent, supporting explicit `{ saved: boolean }` state, `PUT` (save), and `DELETE` (unsave) to prevent desynchronization on rapid taps.
+
+## 15. Purchase Request Statuses & Lifecycle
+- **Permitted Statuses**: Exactly five statuses in the domain enum: `pending`, `completed`, `disputed`, `expired`, `cancelled`.
+- **Cancellation Actor**: `cancelled_by` enum: `buyer | seller | system`.
+- **Step 07 Scope**: Only `pending`, `cancelled`, and `expired` are implemented and reachable. `accepted` and `rejected` do NOT exist.
+- **Dual Timestamps**: `reservation_expires_at = created_at + interval '24 hours'` (stock hold); `resolution_deadline = created_at + interval '7 days'` (negotiation/outcome deadline). Status `expired` is applied strictly when `resolution_deadline` lapses with no outcome.
+- **Clock**: Database `now()` strictly; application process clocks are forbidden for reservation expiration.
+
+## 16. Reservation Concurrency & Drift Prevention
+- **Single Source of Truth**: Live pending requests (`status = 'pending' AND reservation_expires_at > now()`) are the sole authority for reserved inventory.
+- **Interactive Concurrency**: Transactions must acquire a row lock via `SELECT ... FOR UPDATE` on `listing` and recompute `reserved = SUM(requested_quantity)` across active holds. Atomic write of `quantity_reserved` and listing status (`published <-> reserved`). Increment/decrement operators are forbidden.
+- **Single Effective Availability Definition**: Defined ONCE as a shared SQL expression and helper function across request creation, feed, search, detail, and ranking. Listings with lapsed reservations become available immediately without sweep lag.
+- **Out-of-Stock Blocking**: When effective unreserved inventory reaches 0, the listing status is `reserved`, and new purchase requests or offers are strictly blocked.
+- **Listing Mutations**: `quantity_available` can never be edited below currently held `reserved` stock. Price edits never alter request snapshots (`unit_price`, `title`, seller first name). Archiving or deleting a listing with live requests cancels them (`cancelled_by = 'system'`) and notifies buyers.
+
+## 17. Phone Privacy & Normalization
+- **Canonical Format**: Accepts `0803...`, `803...`, `+234803...`, `234803...` and normalizes to E.164 `+234XXXXXXXXXX` (with 7, 8, or 9 as the first digit after 234). Self-declared and unverified.
+- **Strict Privacy**: Phone numbers are never returned in public listing payloads, search feeds, or notifications. Seller phone appears only inside the `wa.me` URL returned to the authenticated buyer holding the live request. Buyer phone is never exposed to the seller by the API.
+
+## 18. Contact Idempotency & Abuse Limits
+- **Idempotency**: Partial unique index on `(buyer_id, listing_id)` where `status = 'pending' AND reservation_expires_at > now()`. Re-requesting returns HTTP 200 with the existing request and `wa.me` link.
+- **Abuse Caps**: Max 5 live pending requests per buyer; max 15 new requests created per buyer in any rolling 24 hours. Rate limited per IP via `x-vercel-forwarded-for`. Buyer must be email-verified and active. Seller can cancel (release) any pending request on their listing; buyer can cancel their own.
