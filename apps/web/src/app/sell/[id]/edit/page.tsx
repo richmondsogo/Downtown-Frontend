@@ -11,25 +11,13 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import type { Category, Listing } from "@downtown/types";
 
-const FALLBACK_CATEGORIES: Category[] = [
-  { id: "cat_electronics", name: "Electronics", slug: "electronics", displayOrder: 1, isActive: true, createdAt: new Date() },
-  { id: "cat_fashion_accessories", name: "Fashion & Accessories", slug: "fashion-accessories", displayOrder: 2, isActive: true, createdAt: new Date() },
-  { id: "cat_food_drinks", name: "Food & Drinks", slug: "food-drinks", displayOrder: 3, isActive: true, createdAt: new Date() },
-  { id: "cat_home_living", name: "Home & Living", slug: "home-living", displayOrder: 4, isActive: true, createdAt: new Date() },
-  { id: "cat_books_study_materials", name: "Books & Study Materials", slug: "books-study-materials", displayOrder: 5, isActive: true, createdAt: new Date() },
-  { id: "cat_beauty_personal_care", name: "Beauty & Personal Care", slug: "beauty-personal-care", displayOrder: 6, isActive: true, createdAt: new Date() },
-  { id: "cat_services", name: "Services", slug: "services", displayOrder: 7, isActive: true, createdAt: new Date() },
-  { id: "cat_tickets_events", name: "Tickets & Events", slug: "tickets-events", displayOrder: 8, isActive: true, createdAt: new Date() },
-  { id: "cat_other", name: "Other", slug: "other", displayOrder: 9, isActive: true, createdAt: new Date() },
-];
-
 export default function EditListingPage() {
   const params = useParams();
   const listingId = params?.id as string;
   const router = useRouter();
 
   const { isAuthenticated, isPending, user } = useAuthGate();
-  const [categories, setCategories] = React.useState<Category[]>(FALLBACK_CATEGORIES);
+  const [categories, setCategories] = React.useState<Category[]>([]);
   const [listingData, setListingData] = React.useState<Listing | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -48,9 +36,14 @@ export default function EditListingPage() {
           fetch(`/api/listings/${listingId}`),
         ]);
 
-        if (catsRes.ok) {
-          const cats = await catsRes.json();
-          if (Array.isArray(cats) && cats.length > 0) setCategories(cats);
+        if (!catsRes.ok) {
+          throw new Error("Failed to load categories from server");
+        }
+        const cats = await catsRes.json();
+        if (Array.isArray(cats) && cats.length > 0) {
+          setCategories(cats);
+        } else {
+          throw new Error("No active categories found");
         }
 
         if (!itemRes.ok) {
