@@ -4,7 +4,8 @@
 **Primary Branch**: `master`  
 **Pull Request**: https://github.com/richmondsogo/Downtown-Frontend/pull/14  
 **First Commit**: `cacaa4c`  
-**Last Commit**: `9b9e209`  
+**Last Commit**: `85872f9`  
+**Merge Commit**: `aed7a37`  
 
 ---
 
